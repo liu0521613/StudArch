@@ -1,24 +1,15 @@
-
-
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import styles from './styles.module.css';
-
-interface User {
-  id: number;
-  username: string;
-  role: 'super_admin' | 'teacher' | 'student';
-  user_number: string;
-  name: string;
-  status: 'active' | 'inactive';
-  created_at: string;
-}
+import UserService from '../../services/userService_fixed';
+import { UserWithRole, UserSearchParams, UserListResponse } from '../../types/user';
 
 interface UserFormData {
   username: string;
-  role: string;
+  role_id: string;
   user_number: string;
-  name: string;
+  full_name: string;
+  email: string;
   password: string;
   status: 'active' | 'inactive';
 }
@@ -26,103 +17,31 @@ interface UserFormData {
 const AdminUserManagement: React.FC = () => {
   const navigate = useNavigate();
   
-  // 模拟用户数据
-  const mockUsers: User[] = [
-    {
-      id: 1,
-      username: 'admin',
-      role: 'super_admin',
-      user_number: 'ADMIN001',
-      name: '超级管理员',
-      status: 'active',
-      created_at: '2024-01-01 10:00:00'
-    },
-    {
-      id: 2,
-      username: 'teacher_zhang',
-      role: 'teacher',
-      user_number: 'T2024001',
-      name: '张老师',
-      status: 'active',
-      created_at: '2024-01-02 14:30:00'
-    },
-    {
-      id: 3,
-      username: 'teacher_li',
-      role: 'teacher',
-      user_number: 'T2024002',
-      name: '李老师',
-      status: 'inactive',
-      created_at: '2024-01-03 09:15:00'
-    },
-    {
-      id: 4,
-      username: 'student_2021001',
-      role: 'student',
-      user_number: '2021001',
-      name: '李小明',
-      status: 'active',
-      created_at: '2024-01-04 16:20:00'
-    },
-    {
-      id: 5,
-      username: 'student_2021002',
-      role: 'student',
-      user_number: '2021002',
-      name: '王小红',
-      status: 'active',
-      created_at: '2024-01-05 11:45:00'
-    },
-    {
-      id: 6,
-      username: 'student_2021003',
-      role: 'student',
-      user_number: '2021003',
-      name: '张大力',
-      status: 'active',
-      created_at: '2024-01-06 13:10:00'
-    },
-    {
-      id: 7,
-      username: 'student_2021004',
-      role: 'student',
-      user_number: '2021004',
-      name: '刘美丽',
-      status: 'inactive',
-      created_at: '2024-01-07 15:50:00'
-    },
-    {
-      id: 8,
-      username: 'student_2021005',
-      role: 'student',
-      user_number: '2021005',
-      name: '陈志强',
-      status: 'active',
-      created_at: '2024-01-08 10:30:00'
-    }
-  ];
-
   // 状态管理
-  const [currentUsers, setCurrentUsers] = useState<User[]>([...mockUsers]);
+  const [users, setUsers] = useState<UserWithRole[]>([]);
+  const [roles, setRoles] = useState<any[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [sortField, setSortField] = useState('');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-  const [selectedUsers, setSelectedUsers] = useState<Set<number>>(new Set());
+  const [totalUsers, setTotalUsers] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [sortField, setSortField] = useState('created_at');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [showUserModal, setShowUserModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
-  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [editingUser, setEditingUser] = useState<UserWithRole | null>(null);
   const [importFile, setImportFile] = useState<File | null>(null);
   
   // 表单数据
   const [formData, setFormData] = useState<UserFormData>({
     username: '',
-    role: '',
+    role_id: '',
     user_number: '',
-    name: '',
+    full_name: '',
+    email: '',
     password: '',
     status: 'active'
   });
@@ -134,66 +53,49 @@ const AdminUserManagement: React.FC = () => {
     return () => { document.title = originalTitle; };
   }, []);
 
-  // 筛选用户
-  const filterUsers = () => {
-    let filteredUsers = [...mockUsers];
-    
-    // 搜索筛选
-    if (searchTerm) {
-      filteredUsers = filteredUsers.filter(user =>
-        user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.user_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.name.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-    
-    // 角色筛选
-    if (roleFilter) {
-      filteredUsers = filteredUsers.filter(user => user.role === roleFilter);
-    }
-    
-    // 状态筛选
-    if (statusFilter) {
-      filteredUsers = filteredUsers.filter(user => user.status === statusFilter);
-    }
-    
-    setCurrentUsers(filteredUsers);
-    setCurrentPage(1);
-    setSelectedUsers(new Set());
-  };
-
-  // 应用筛选
+  // 加载角色列表
   useEffect(() => {
-    filterUsers();
-  }, [searchTerm, roleFilter, statusFilter]);
-
-  // 排序用户
-  const sortUsers = () => {
-    if (!sortField) return;
-    
-    const sortedUsers = [...currentUsers].sort((a, b) => {
-      let aValue = a[sortField as keyof User];
-      let bValue = b[sortField as keyof User];
-      
-      if (typeof aValue === 'string') {
-        aValue = aValue.toLowerCase() as any;
-        bValue = bValue.toLowerCase() as any;
+    const loadRoles = async () => {
+      try {
+        const rolesData = await UserService.getRoles();
+        setRoles(rolesData);
+      } catch (error) {
+        console.error('加载角色列表失败:', error);
+        alert('加载角色列表失败');
       }
-      
-      if (sortOrder === 'asc') {
-        return aValue > bValue ? 1 : -1;
-      } else {
-        return aValue < bValue ? 1 : -1;
-      }
-    });
+    };
     
-    setCurrentUsers(sortedUsers);
-  };
+    loadRoles();
+  }, []);
 
-  // 应用排序
+  // 加载用户数据
   useEffect(() => {
-    sortUsers();
-  }, [sortField, sortOrder]);
+    const loadUsers = async () => {
+      setLoading(true);
+      try {
+        const searchParams: UserSearchParams = {
+          keyword: searchTerm,
+          role_id: roleFilter,
+          status: statusFilter,
+          page: currentPage,
+          limit: pageSize,
+          sort_by: sortField,
+          sort_order: sortOrder
+        };
+        
+        const response: UserListResponse = await UserService.getUsers(searchParams);
+        setUsers(response.users);
+        setTotalUsers(response.total);
+      } catch (error) {
+        console.error('加载用户数据失败:', error);
+        alert('加载用户数据失败');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadUsers();
+  }, [currentPage, pageSize, sortField, sortOrder, searchTerm, roleFilter, statusFilter]);
 
   // 处理排序点击
   const handleSortClick = (field: string) => {
@@ -205,16 +107,15 @@ const AdminUserManagement: React.FC = () => {
     }
   };
 
-  // 处理分页
-  const totalPages = Math.ceil(currentUsers.length / pageSize);
-  const startIndex = (currentPage - 1) * pageSize;
-  const endIndex = Math.min(startIndex + pageSize, currentUsers.length);
-  const currentPageUsers = currentUsers.slice(startIndex, endIndex);
+  // 计算分页信息
+  const totalPages = Math.ceil(totalUsers / pageSize);
+  const startIndex = (currentPage - 1) * pageSize + 1;
+  const endIndex = Math.min(startIndex + pageSize - 1, totalUsers);
 
   // 处理全选
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      const pageUserIds = currentPageUsers.map(user => user.id);
+      const pageUserIds = users.map(user => user.id);
       setSelectedUsers(new Set(pageUserIds));
     } else {
       setSelectedUsers(new Set());
@@ -222,7 +123,7 @@ const AdminUserManagement: React.FC = () => {
   };
 
   // 处理单选
-  const handleSelectUser = (userId: number, checked: boolean) => {
+  const handleSelectUser = (userId: string, checked: boolean) => {
     const newSelectedUsers = new Set(selectedUsers);
     if (checked) {
       newSelectedUsers.add(userId);
@@ -233,27 +134,29 @@ const AdminUserManagement: React.FC = () => {
   };
 
   // 检查是否全选
-  const isAllSelected = currentPageUsers.length > 0 && 
-    currentPageUsers.every(user => selectedUsers.has(user.id));
+  const isAllSelected = users.length > 0 && 
+    users.every(user => selectedUsers.has(user.id));
 
   // 打开用户模态框
-  const openUserModal = (user: User | null = null) => {
+  const openUserModal = (user: UserWithRole | null = null) => {
     setEditingUser(user);
     if (user) {
       setFormData({
         username: user.username,
-        role: user.role,
-        user_number: user.user_number,
-        name: user.name,
+        role_id: user.role_id,
+        user_number: user.user_number || '',
+        full_name: user.full_name,
+        email: user.email,
         password: '',
         status: user.status
       });
     } else {
       setFormData({
         username: '',
-        role: '',
+        role_id: '',
         user_number: '',
-        name: '',
+        full_name: '',
+        email: '',
         password: '',
         status: 'active'
       });
@@ -262,72 +165,170 @@ const AdminUserManagement: React.FC = () => {
   };
 
   // 保存用户
-  const saveUser = (e: React.FormEvent) => {
+  const saveUser = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('保存用户数据:', formData);
-    alert('用户保存成功');
-    setShowUserModal(false);
-    setEditingUser(null);
+    try {
+      if (editingUser) {
+        await UserService.updateUser(editingUser.id, formData);
+        alert('用户更新成功');
+      } else {
+        await UserService.createUser(formData);
+        alert('用户创建成功');
+      }
+      setShowUserModal(false);
+      setEditingUser(null);
+      // 重新加载用户列表
+      const searchParams: UserSearchParams = {
+        keyword: searchTerm,
+        role_id: roleFilter,
+        status: statusFilter,
+        page: currentPage,
+        limit: pageSize,
+        sort_by: sortField,
+        sort_order: sortOrder
+      };
+      const response: UserListResponse = await UserService.getUsers(searchParams);
+      setUsers(response.users);
+      setTotalUsers(response.total);
+    } catch (error) {
+      console.error('保存用户失败:', error);
+      alert('保存用户失败');
+    }
   };
 
   // 编辑用户
-  const editUser = (userId: number) => {
-    const user = mockUsers.find(u => u.id === userId);
+  const editUser = (userId: string) => {
+    const user = users.find(u => u.id === userId);
     if (user) {
       openUserModal(user);
     }
   };
 
   // 重置密码
-  const resetPassword = (userId: number) => {
+  const resetPassword = async (userId: string) => {
     if (confirm('确定要重置该用户的密码吗？')) {
-      console.log('重置用户密码:', userId);
-      alert('密码重置成功，新密码已发送到用户邮箱');
+      try {
+        await UserService.batchResetPassword([userId]);
+        alert('密码重置成功，新密码已发送到用户邮箱');
+      } catch (error) {
+        console.error('重置密码失败:', error);
+        alert('重置密码失败');
+      }
     }
   };
 
   // 删除用户
-  const deleteUser = (userId: number) => {
+  const deleteUser = async (userId: string) => {
     if (confirm('确定要删除该用户吗？此操作不可撤销。')) {
-      console.log('删除用户:', userId);
-      alert('用户删除成功');
-      setSelectedUsers(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(userId);
-        return newSet;
-      });
+      try {
+        await UserService.deleteUser(userId);
+        alert('用户删除成功');
+        setSelectedUsers(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(userId);
+          return newSet;
+        });
+        // 重新加载用户列表
+        const searchParams: UserSearchParams = {
+          keyword: searchTerm,
+          role_id: roleFilter,
+          status: statusFilter,
+          page: currentPage,
+          limit: pageSize,
+          sort_by: sortField,
+          sort_order: sortOrder
+        };
+        const response: UserListResponse = await UserService.getUsers(searchParams);
+        setUsers(response.users);
+        setTotalUsers(response.total);
+      } catch (error) {
+        console.error('删除用户失败:', error);
+        alert('删除用户失败');
+      }
     }
   };
 
   // 批量重置密码
-  const batchResetPassword = () => {
+  const batchResetPassword = async () => {
     if (selectedUsers.size === 0) {
       alert('请选择要重置密码的用户');
       return;
     }
     if (confirm(`确定要重置选中的 ${selectedUsers.size} 个用户的密码吗？`)) {
-      console.log('批量重置密码', Array.from(selectedUsers));
-      alert('密码重置成功');
-      setSelectedUsers(new Set());
+      try {
+        await UserService.batchResetPassword(Array.from(selectedUsers));
+        alert('密码重置成功');
+        setSelectedUsers(new Set());
+      } catch (error) {
+        console.error('批量重置密码失败:', error);
+        alert('批量重置密码失败');
+      }
     }
   };
 
   // 批量删除
-  const batchDelete = () => {
+  const batchDelete = async () => {
     if (selectedUsers.size === 0) {
       alert('请选择要删除的用户');
       return;
     }
     if (confirm(`确定要删除选中的 ${selectedUsers.size} 个用户吗？此操作不可撤销。`)) {
-      console.log('批量删除用户', Array.from(selectedUsers));
-      alert('用户删除成功');
-      setSelectedUsers(new Set());
+      try {
+        for (const userId of selectedUsers) {
+          await UserService.deleteUser(userId);
+        }
+        alert('用户删除成功');
+        setSelectedUsers(new Set());
+        // 重新加载用户列表
+        const searchParams: UserSearchParams = {
+          keyword: searchTerm,
+          role_id: roleFilter,
+          status: statusFilter,
+          page: currentPage,
+          limit: pageSize,
+          sort_by: sortField,
+          sort_order: sortOrder
+        };
+        const response: UserListResponse = await UserService.getUsers(searchParams);
+        setUsers(response.users);
+        setTotalUsers(response.total);
+      } catch (error) {
+        console.error('批量删除失败:', error);
+        alert('批量删除失败');
+      }
     }
   };
 
   // 下载模板
   const downloadTemplate = () => {
-    console.log('下载Excel模板');
+    // 创建Excel模板数据
+    const templateData = [
+      ['用户名', '角色', '学号/工号', '姓名', '邮箱', '状态'],
+      ['teacher_zhang', 'teacher', 'T2024001', '张老师', 'zhang@example.com', 'active'],
+      ['student_li', 'student', '2021001', '李同学', 'li@example.com', 'active'],
+      ['admin_wang', 'super_admin', 'ADMIN001', '王管理员', 'wang@example.com', 'active'],
+      ['', '', '', '', '', ''],
+      ['说明：', '', '', '', '', ''],
+      ['1. 角色字段支持：super_admin(超级管理员), teacher(教师), student(学生)', '', '', '', '', ''],
+      ['2. 状态字段支持：active(启用), inactive(停用)', '', '', '', '', ''],
+      ['3. 用户名必须是唯一的', '', '', '', '', ''],
+      ['4. 邮箱格式必须正确', '', '', '', '', ''],
+      ['5. 学号/工号可以为空', '', '', '', '', '']
+    ];
+
+    // 创建Excel文件（UTF-8 BOM编码，确保中文正确显示）
+    let csvContent = '\uFEFF'; // 添加BOM字符，确保Excel正确显示中文
+    templateData.forEach(row => {
+      csvContent += row.map(cell => `"${cell.replace(/"/g, '""')}"`).join(',') + '\r\n';
+    });
+
+    const blob = new Blob([csvContent], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = '用户导入模板.xlsx';
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   // 处理文件选择
@@ -344,11 +345,102 @@ const AdminUserManagement: React.FC = () => {
   };
 
   // 确认导入
-  const confirmImport = () => {
-    console.log('开始批量导入用户');
-    alert('导入功能演示：文件上传成功，正在处理数据...');
-    setShowImportModal(false);
-    setImportFile(null);
+  const confirmImport = async () => {
+    if (!importFile) return;
+    
+    try {
+      const reader = new FileReader();
+      
+      reader.onload = async (e) => {
+        try {
+          const content = e.target?.result as string;
+          const lines = content.split('\n');
+          
+          // 解析CSV数据
+          const headers = lines[0].split(',');
+          const importData = [];
+          
+          for (let i = 1; i < lines.length; i++) {
+            if (lines[i].trim()) {
+              const values = lines[i].split(',');
+              const row: any = {};
+              
+              headers.forEach((header, index) => {
+                row[header.trim()] = values[index] ? values[index].trim() : '';
+              });
+              
+              // 映射角色名称到角色ID
+              let roleId = '';
+              if (row['角色'] === 'teacher') {
+                roleId = roles.find(r => r.name === 'teacher')?.id || '';
+              } else if (row['角色'] === 'student') {
+                roleId = roles.find(r => r.name === 'student')?.id || '';
+              } else if (row['角色'] === 'super_admin') {
+                roleId = roles.find(r => r.name === 'super_admin')?.id || '';
+              }
+              
+              if (roleId && row['用户名'] && row['姓名'] && row['邮箱']) {
+                importData.push({
+                  username: row['用户名'],
+                  full_name: row['姓名'],
+                  email: row['邮箱'],
+                  user_number: row['学号/工号'] || '',
+                  role_id: roleId,
+                  status: row['状态'] === 'active' ? 'active' : 'inactive',
+                  password: '123456' // 默认密码
+                });
+              }
+            }
+          }
+          
+          // 批量导入用户
+          let successCount = 0;
+          let errorCount = 0;
+          
+          for (const userData of importData) {
+            try {
+              await UserService.createUser(userData);
+              successCount++;
+            } catch (error) {
+              console.error(`导入用户失败: ${userData.username}`, error);
+              errorCount++;
+            }
+          }
+          
+          alert(`导入完成！成功导入 ${successCount} 个用户，失败 ${errorCount} 个用户`);
+          setShowImportModal(false);
+          setImportFile(null);
+          
+          // 重新加载用户列表
+          const searchParams: UserSearchParams = {
+            keyword: searchTerm,
+            role_id: roleFilter,
+            status: statusFilter,
+            page: currentPage,
+            limit: pageSize,
+            sort_by: sortField,
+            sort_order: sortOrder
+          };
+          const response: UserListResponse = await UserService.getUsers(searchParams);
+          setUsers(response.users);
+          setTotalUsers(response.total);
+          
+        } catch (error) {
+          console.error('解析文件失败:', error);
+          alert('文件格式错误，请检查模板格式');
+        }
+      };
+      
+      reader.onerror = () => {
+        alert('文件读取失败，请重试');
+      };
+      
+      reader.readAsText(importFile);
+      
+    } catch (error) {
+      console.error('导入失败:', error);
+      alert('导入失败，请检查文件格式');
+    }
   };
 
   // 退出登录
@@ -358,9 +450,23 @@ const AdminUserManagement: React.FC = () => {
     }
   };
 
+  // 获取角色文本
+  const getRoleText = (roleName: string) => {
+    const role = roles.find(r => r.role_name === roleName);
+    if (role) return role.role_description;
+    
+    // 默认角色映射
+    switch(roleName) {
+      case 'super_admin': return '超级管理员';
+      case 'teacher': return '教师';
+      case 'student': return '学生';
+      default: return '未知角色';
+    }
+  };
+
   // 获取角色样式
-  const getRoleClass = (role: string) => {
-    switch(role) {
+  const getRoleClass = (roleName: string) => {
+    switch(roleName) {
       case 'super_admin': return 'bg-purple-100 text-purple-800';
       case 'teacher': return 'bg-blue-100 text-blue-800';
       case 'student': return 'bg-green-100 text-green-800';
@@ -368,14 +474,18 @@ const AdminUserManagement: React.FC = () => {
     }
   };
 
-  // 获取角色文本
-  const getRoleText = (role: string) => {
-    switch(role) {
-      case 'super_admin': return '超级管理员';
-      case 'teacher': return '教师';
-      case 'student': return '学生';
-      default: return '未知角色';
+  // 获取可用的角色列表（如果没有从数据库获取到，使用默认值）
+  const getAvailableRoles = () => {
+    if (roles.length > 0) {
+      return roles;
     }
+    
+    // 默认角色列表
+    return [
+      { id: '1', role_name: 'super_admin', role_description: '超级管理员' },
+      { id: '2', role_name: 'teacher', role_description: '教师' },
+      { id: '3', role_name: 'student', role_description: '学生' }
+    ];
   };
 
   // 获取状态样式
@@ -560,9 +670,11 @@ const AdminUserManagement: React.FC = () => {
                 className={`px-3 py-2 border border-border-light rounded-lg ${styles.formInputFocus}`}
               >
                 <option value="">全部角色</option>
-                <option value="super_admin">超级管理员</option>
-                <option value="teacher">教师</option>
-                <option value="student">学生</option>
+                {getAvailableRoles().map(role => (
+                  <option key={role.id} value={role.id}>
+                    {role.role_description}
+                  </option>
+                ))}
               </select>
               
               <select 
@@ -637,7 +749,7 @@ const AdminUserManagement: React.FC = () => {
                   </th>
                   <th 
                     className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider cursor-pointer hover:text-text-primary"
-                    onClick={() => handleSortClick('name')}
+                    onClick={() => handleSortClick('full_name')}
                   >
                     姓名 <i className="fas fa-sort ml-1"></i>
                   </th>
@@ -659,7 +771,7 @@ const AdminUserManagement: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-border-light">
-                {currentPageUsers.map(user => (
+                {users.map(user => (
                   <tr key={user.id} className={`${styles.tableRow} transition-colors`}>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <input 
@@ -672,12 +784,12 @@ const AdminUserManagement: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">{user.username}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 py-1 text-xs font-medium ${getRoleClass(user.role)} rounded-full`}>
-                        {getRoleText(user.role)}
+                      <span className={`px-2 py-1 text-xs font-medium ${getRoleClass(user.role?.role_name)} rounded-full`}>
+                        {getRoleText(user.role?.role_name)}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">{user.user_number}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">{user.name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">{user.full_name}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 py-1 text-xs font-medium ${getStatusClass(user.status)} rounded-full`}>
                         {getStatusText(user.status)}
@@ -713,7 +825,7 @@ const AdminUserManagement: React.FC = () => {
           {/* 分页区域 */}
           <div className="px-6 py-4 border-t border-border-light flex items-center justify-between">
             <div className="text-sm text-text-secondary">
-              显示 <span>{startIndex + 1}</span>-<span>{endIndex}</span> 条，共 <span>{currentUsers.length}</span> 条记录
+              显示 <span>{startIndex}</span>-<span>{endIndex}</span> 条，共 <span>{totalUsers}</span> 条记录
             </div>
             <div className="flex items-center space-x-2">
               <button 
@@ -795,14 +907,17 @@ const AdminUserManagement: React.FC = () => {
                     </label>
                     <select 
                       id="form-role" 
-                      value={formData.role}
-                      onChange={(e) => setFormData(prev => ({...prev, role: e.target.value}))}
+                      value={formData.role_id}
+                      onChange={(e) => setFormData(prev => ({...prev, role_id: e.target.value}))}
                       required
                       className={`w-full px-4 py-2 border border-border-light rounded-lg ${styles.formInputFocus}`}
                     >
                       <option value="">请选择角色</option>
-                      <option value="teacher">教师</option>
-                      <option value="student">学生</option>
+                      {getAvailableRoles().map(role => (
+                        <option key={role.id} value={role.id}>
+                          {role.role_description}
+                        </option>
+                      ))}
                     </select>
                   </div>
                   
@@ -827,8 +942,22 @@ const AdminUserManagement: React.FC = () => {
                     <input 
                       type="text" 
                       id="form-name" 
-                      value={formData.name}
-                      onChange={(e) => setFormData(prev => ({...prev, name: e.target.value}))}
+                      value={formData.full_name}
+                      onChange={(e) => setFormData(prev => ({...prev, full_name: e.target.value}))}
+                      required
+                      className={`w-full px-4 py-2 border border-border-light rounded-lg ${styles.formInputFocus}`}
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label htmlFor="form-email" className="block text-sm font-medium text-text-primary">
+                      邮箱 *
+                    </label>
+                    <input 
+                      type="email" 
+                      id="form-email" 
+                      value={formData.email}
+                      onChange={(e) => setFormData(prev => ({...prev, email: e.target.value}))}
                       required
                       className={`w-full px-4 py-2 border border-border-light rounded-lg ${styles.formInputFocus}`}
                     />
@@ -934,13 +1063,14 @@ const AdminUserManagement: React.FC = () => {
                     <div className="relative">
                       <input 
                         type="file" 
-                        accept=".xlsx,.xls" 
+                        accept=".csv,.xlsx,.xls" 
                         onChange={handleFileChange}
                         className="hidden"
+                        id="import-file"
                       />
                       <button 
                         type="button" 
-                        onClick={() => document.querySelector('input[type="file"]')?.click()}
+                        onClick={() => document.getElementById('import-file')?.click()}
                         className="w-full px-4 py-3 border-2 border-dashed border-border-light rounded-lg hover:border-secondary hover:bg-gray-50 transition-colors"
                       >
                         <i className="fas fa-cloud-upload-alt text-2xl text-text-secondary mb-2 block"></i>
@@ -994,4 +1124,3 @@ const AdminUserManagement: React.FC = () => {
 };
 
 export default AdminUserManagement;
-
