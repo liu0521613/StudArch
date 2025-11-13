@@ -3,11 +3,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styles from './styles.module.css';
+import AuthService, { LoginCredentials } from '../../services/authService';
 
 interface LoginFormData {
-  username: string;
+  identifier: string; // 用户名、学号或工号
   password: string;
   captcha: string;
+  loginType: 'username' | 'student_id' | 'teacher_id'; // 登录方式
 }
 
 const LoginPage: React.FC = () => {
@@ -15,9 +17,10 @@ const LoginPage: React.FC = () => {
   
   // 表单数据状态
   const [formData, setFormData] = useState<LoginFormData>({
-    username: '',
+    identifier: '',
     password: '',
-    captcha: ''
+    captcha: '',
+    loginType: 'username'
   });
   
   // UI状态
@@ -86,10 +89,10 @@ const LoginPage: React.FC = () => {
 
   // 表单验证
   const validateForm = (): boolean => {
-    const { username, password, captcha } = formData;
+    const { identifier, password, captcha } = formData;
 
-    if (!username.trim()) {
-      showErrorMessage('请输入用户名');
+    if (!identifier.trim()) {
+      showErrorMessage('请输入用户名/学号/工号');
       return false;
     }
 
@@ -109,25 +112,45 @@ const LoginPage: React.FC = () => {
       return false;
     }
 
+    // 根据登录类型验证格式
+    if (formData.loginType === 'student_id' && !/^\d{5,12}$/.test(identifier)) {
+      showErrorMessage('请输入正确的学号格式（5-12位数字）');
+      return false;
+    }
+
+    if (formData.loginType === 'teacher_id' && !/^[A-Za-z]\d{3,8}$/.test(identifier)) {
+      showErrorMessage('请输入正确的工号格式（字母开头，3-8位数字）');
+      return false;
+    }
+
     hideErrorMessage();
     return true;
   };
 
-  // 模拟登录请求
-  const simulateLogin = (username: string, password: string): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        if (username === 'admin' && password === 'admin123') {
-          resolve('super_admin');
-        } else if (username === 'teacher' && password === 'teacher123') {
-          resolve('teacher');
-        } else if (username === 'student' && password === 'student123') {
-          resolve('student');
-        } else {
-          reject('用户名或密码错误');
-        }
-      }, 1500);
-    });
+  // 登录请求
+  const handleLogin = async (credentials: LoginCredentials): Promise<void> => {
+    const result = await AuthService.login(credentials);
+    
+    if (result.success && result.user) {
+      // 存储token和用户信息
+      localStorage.setItem('auth_token', result.token || '');
+      localStorage.setItem('user_info', JSON.stringify(result.user));
+      
+      // 根据角色跳转到不同页面
+      const redirectPath = AuthService.getRedirectPath(result.user.role.role_name);
+      navigate(redirectPath);
+    } else {
+      throw new Error(result.error || '登录失败');
+    }
+  };
+
+  // 登录方式切换
+  const handleLoginTypeChange = (type: 'username' | 'student_id' | 'teacher_id') => {
+    setFormData(prev => ({
+      ...prev,
+      loginType: type,
+      identifier: '' // 清空输入框
+    }));
   };
 
   // 表单提交处理
@@ -141,24 +164,11 @@ const LoginPage: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const { username, password } = formData;
-      const role = await simulateLogin(username.trim(), password.trim());
-      
-      // 根据角色跳转到不同页面
-      switch(role) {
-        case 'super_admin':
-          navigate('/admin-dashboard');
-          break;
-        case 'teacher':
-          navigate('/teacher-dashboard');
-          break;
-        case 'student':
-          navigate('/student-dashboard');
-          break;
-        default:
-          showErrorMessage('未知用户角色');
-          setIsLoading(false);
-      }
+      const { identifier, password } = formData;
+      await handleLogin({
+        identifier: identifier.trim(),
+        password: password.trim()
+      });
     } catch (error) {
       showErrorMessage(error as string);
       setIsLoading(false);
@@ -224,23 +234,72 @@ const LoginPage: React.FC = () => {
           <h2 className="text-xl font-semibold text-text-primary text-center mb-6">用户登录</h2>
           
           <form onSubmit={handleSubmit} className={`space-y-6 ${formShake ? styles.shakeAnimation : ''}`}>
-            {/* 用户名输入框 */}
+            {/* 登录方式选择 */}
+            <div className="flex space-x-2 mb-4">
+              <button
+                type="button"
+                onClick={() => handleLoginTypeChange('username')}
+                className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
+                  formData.loginType === 'username'
+                    ? 'bg-secondary text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                用户名登录
+              </button>
+              <button
+                type="button"
+                onClick={() => handleLoginTypeChange('student_id')}
+                className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
+                  formData.loginType === 'student_id'
+                    ? 'bg-secondary text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                学生学号登录
+              </button>
+              <button
+                type="button"
+                onClick={() => handleLoginTypeChange('teacher_id')}
+                className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
+                  formData.loginType === 'teacher_id'
+                    ? 'bg-secondary text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                教师工号登录
+              </button>
+            </div>
+
+            {/* 标识符输入框 */}
             <div className="space-y-2">
-              <label htmlFor="username" className="block text-sm font-medium text-text-primary">用户名</label>
+              <label htmlFor="identifier" className="block text-sm font-medium text-text-primary">
+                {formData.loginType === 'username' && '用户名'}
+                {formData.loginType === 'student_id' && '学号'}
+                {formData.loginType === 'teacher_id' && '工号'}
+              </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <i className="fas fa-user text-text-secondary"></i>
+                  <i className={`fas ${
+                    formData.loginType === 'username' ? 'fa-user' :
+                    formData.loginType === 'student_id' ? 'fa-graduation-cap' :
+                    'fa-chalkboard-teacher'
+                  } text-text-secondary`}></i>
                 </div>
                 <input 
                   type="text" 
-                  id="username" 
-                  name="username" 
-                  value={formData.username}
+                  id="identifier" 
+                  name="identifier" 
+                  value={formData.identifier}
                   onChange={handleInputChange}
                   onFocus={handleInputFocus}
                   onBlur={handleInputBlur}
                   className={`w-full pl-10 pr-4 py-3 border border-border-light rounded-lg ${styles.formInputFocus} transition-all duration-300`}
-                  placeholder="请输入用户名"
+                  placeholder={
+                    formData.loginType === 'username' ? '请输入用户名' :
+                    formData.loginType === 'student_id' ? '请输入学号（5-12位数字）' :
+                    '请输入工号（字母开头，3-8位数字）'
+                  }
                   required
                 />
               </div>

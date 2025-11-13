@@ -1,6 +1,7 @@
 import { createBrowserRouter, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useEffect } from 'react';
 import { ErrorBoundary } from '../components/ErrorBoundary';
+import AuthGuard from '../components/AuthGuard';
 
 import P_login from '../pages/p-login';
 import P_admin_dashboard from '../pages/p-admin_dashboard';
@@ -66,7 +67,9 @@ const router = createBrowserRouter([
     path: '/admin-dashboard',
     element: (
       <ErrorBoundary>
-        <P_admin_dashboard />
+        <AuthGuard requiredRole="super_admin">
+          <P_admin_dashboard />
+        </AuthGuard>
       </ErrorBoundary>
     ),
     errorElement: <ErrorPage />,
@@ -75,7 +78,9 @@ const router = createBrowserRouter([
     path: '/admin-user-management',
     element: (
       <ErrorBoundary>
-        <P_admin_user_management />
+        <AuthGuard requiredRole="super_admin">
+          <P_admin_user_management />
+        </AuthGuard>
       </ErrorBoundary>
     ),
     errorElement: <ErrorPage />,
@@ -84,7 +89,9 @@ const router = createBrowserRouter([
     path: '/admin-role-permission',
     element: (
       <ErrorBoundary>
-        <P_admin_role_permission />
+        <AuthGuard requiredRole="super_admin">
+          <P_admin_role_permission />
+        </AuthGuard>
       </ErrorBoundary>
     ),
     errorElement: <ErrorPage />,
@@ -93,7 +100,9 @@ const router = createBrowserRouter([
     path: '/admin-system-settings',
     element: (
       <ErrorBoundary>
-        <P_admin_system_settings />
+        <AuthGuard requiredRole="super_admin">
+          <P_admin_system_settings />
+        </AuthGuard>
       </ErrorBoundary>
     ),
     errorElement: <ErrorPage />,
@@ -102,7 +111,9 @@ const router = createBrowserRouter([
     path: '/admin-operation-log',
     element: (
       <ErrorBoundary>
-        <P_admin_operation_log />
+        <AuthGuard requiredRole="super_admin">
+          <P_admin_operation_log />
+        </AuthGuard>
       </ErrorBoundary>
     ),
     errorElement: <ErrorPage />,
@@ -111,7 +122,9 @@ const router = createBrowserRouter([
     path: '/teacher-dashboard',
     element: (
       <ErrorBoundary>
-        <P_teacher_dashboard />
+        <AuthGuard requiredRole="teacher">
+          <P_teacher_dashboard />
+        </AuthGuard>
       </ErrorBoundary>
     ),
     errorElement: <ErrorPage />,
@@ -120,7 +133,9 @@ const router = createBrowserRouter([
     path: '/teacher-student-list',
     element: (
       <ErrorBoundary>
-        <P_teacher_student_list />
+        <AuthGuard requiredRole="teacher">
+          <P_teacher_student_list />
+        </AuthGuard>
       </ErrorBoundary>
     ),
     errorElement: <ErrorPage />,
@@ -129,7 +144,9 @@ const router = createBrowserRouter([
     path: '/teacher-student-detail',
     element: (
       <ErrorBoundary>
-        <P_teacher_student_detail />
+        <AuthGuard requiredRole="teacher">
+          <P_teacher_student_detail />
+        </AuthGuard>
       </ErrorBoundary>
     ),
     errorElement: <ErrorPage />,
@@ -138,7 +155,9 @@ const router = createBrowserRouter([
     path: '/teacher-academic-management',
     element: (
       <ErrorBoundary>
-        <P_teacher_academic_management />
+        <AuthGuard requiredRole="teacher">
+          <P_teacher_academic_management />
+        </AuthGuard>
       </ErrorBoundary>
     ),
     errorElement: <ErrorPage />,
@@ -147,7 +166,9 @@ const router = createBrowserRouter([
     path: '/teacher-graduation-management',
     element: (
       <ErrorBoundary>
-        <P_teacher_graduation_management />
+        <AuthGuard requiredRole="teacher">
+          <P_teacher_graduation_management />
+        </AuthGuard>
       </ErrorBoundary>
     ),
     errorElement: <ErrorPage />,
@@ -156,7 +177,9 @@ const router = createBrowserRouter([
     path: '/teacher-report',
     element: (
       <ErrorBoundary>
-        <P_teacher_report />
+        <AuthGuard requiredRole="teacher">
+          <P_teacher_report />
+        </AuthGuard>
       </ErrorBoundary>
     ),
     errorElement: <ErrorPage />,
@@ -165,7 +188,9 @@ const router = createBrowserRouter([
     path: '/student-dashboard',
     element: (
       <ErrorBoundary>
-        <P_student_dashboard />
+        <AuthGuard requiredRole="student">
+          <P_student_dashboard />
+        </AuthGuard>
       </ErrorBoundary>
     ),
     errorElement: <ErrorPage />,
@@ -174,7 +199,9 @@ const router = createBrowserRouter([
     path: '/student-my-profile',
     element: (
       <ErrorBoundary>
-        <P_student_my_profile />
+        <AuthGuard requiredRole="student">
+          <P_student_my_profile />
+        </AuthGuard>
       </ErrorBoundary>
     ),
     errorElement: <ErrorPage />,
@@ -183,7 +210,9 @@ const router = createBrowserRouter([
     path: '/student-profile-edit',
     element: (
       <ErrorBoundary>
-        <P_student_profile_edit />
+        <AuthGuard requiredRole="student">
+          <P_student_profile_edit />
+        </AuthGuard>
       </ErrorBoundary>
     ),
     errorElement: <ErrorPage />,
@@ -192,7 +221,9 @@ const router = createBrowserRouter([
     path: '/student-graduation-fill',
     element: (
       <ErrorBoundary>
-        <P_student_graduation_fill />
+        <AuthGuard requiredRole="student">
+          <P_student_graduation_fill />
+        </AuthGuard>
       </ErrorBoundary>
     ),
     errorElement: <ErrorPage />,
@@ -201,7 +232,9 @@ const router = createBrowserRouter([
     path: '/student-document-view',
     element: (
       <ErrorBoundary>
-        <P_student_document_view />
+        <AuthGuard requiredRole="student">
+          <P_student_document_view />
+        </AuthGuard>
       </ErrorBoundary>
     ),
     errorElement: <ErrorPage />,
@@ -210,7 +243,9 @@ const router = createBrowserRouter([
     path: '/student-task-list',
     element: (
       <ErrorBoundary>
-        <P_student_task_list />
+        <AuthGuard requiredRole="student">
+          <P_student_task_list />
+        </AuthGuard>
       </ErrorBoundary>
     ),
     errorElement: <ErrorPage />,
@@ -219,7 +254,9 @@ const router = createBrowserRouter([
     path: '/student-course-schedule',
     element: (
       <ErrorBoundary>
-        <P_student_course_schedule />
+        <AuthGuard requiredRole="student">
+          <P_student_course_schedule />
+        </AuthGuard>
       </ErrorBoundary>
     ),
     errorElement: <ErrorPage />,
@@ -228,7 +265,9 @@ const router = createBrowserRouter([
     path: '/student-task-progress',
     element: (
       <ErrorBoundary>
-        <P_student_task_progress />
+        <AuthGuard requiredRole="student">
+          <P_student_task_progress />
+        </AuthGuard>
       </ErrorBoundary>
     ),
     errorElement: <ErrorPage />,
