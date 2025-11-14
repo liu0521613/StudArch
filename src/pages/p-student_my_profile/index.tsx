@@ -3,6 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import styles from './styles.module.css';
+import { UserWithRole } from '../../types/user';
+import { useAuth } from '../../hooks/useAuth';
+import useStudentProfile from '../../hooks/useStudentProfile';
 
 interface TabType {
   id: string;
@@ -12,7 +15,17 @@ interface TabType {
 
 const StudentMyProfile: React.FC = () => {
   const navigate = useNavigate();
+  const { user: currentUser, loading: authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState<string>('basic');
+  const [loading, setLoading] = useState(true);
+
+  // 使用useStudentProfile hook获取个人信息
+  const { 
+    profile: studentProfile, 
+    loading: profileLoading, 
+    isProfileComplete,
+    getCompletionRate 
+  } = useStudentProfile(currentUser?.id || '');
 
   const tabs: TabType[] = [
     { id: 'basic', label: '基本信息', content: 'basic-content' },
@@ -26,8 +39,14 @@ const StudentMyProfile: React.FC = () => {
   useEffect(() => {
     const originalTitle = document.title;
     document.title = '我的档案 - 学档通';
+    
+    // 当个人信息和用户信息加载完成后，设置loading状态
+    if (!authLoading && !profileLoading) {
+      setLoading(false);
+    }
+    
     return () => { document.title = originalTitle; };
-  }, []);
+  }, [authLoading, profileLoading]);
 
   const handleTabClick = (tabId: string) => {
     setActiveTab(tabId);
@@ -92,8 +111,12 @@ const StudentMyProfile: React.FC = () => {
                 className="w-8 h-8 rounded-full" 
               />
               <div className="text-sm">
-                <div className="font-medium text-text-primary">李小明</div>
-                <div className="text-text-secondary">计算机科学与技术1班</div>
+                <div className="font-medium text-text-primary">
+                  {loading ? '加载中...' : (currentUser?.full_name || currentUser?.username || '未知用户')}
+                </div>
+                <div className="text-text-secondary">
+                  {loading ? '加载中...' : (currentUser?.class_name || '未知班级')}
+                </div>
               </div>
               <i className="fas fa-chevron-down text-xs text-text-secondary"></i>
             </div>
@@ -182,28 +205,56 @@ const StudentMyProfile: React.FC = () => {
           <div className="bg-white rounded-xl shadow-card p-6">
             <div className="flex items-center space-x-6">
               <img 
-                src="https://s.coze.cn/image/hAFUsHRaPGI/" 
-                alt="李小明头像" 
+                src={currentUser?.avatar || "https://s.coze.cn/image/hAFUsHRaPGI/"} 
+                alt={loading ? '加载中...' : (currentUser?.full_name || currentUser?.username || '用户') + "头像"} 
                 className="w-20 h-20 rounded-full" 
               />
               <div className="flex-1">
-                <h3 className="text-xl font-bold text-text-primary mb-2">李小明</h3>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-xl font-bold text-text-primary">
+                    {loading ? '加载中...' : (currentUser?.full_name || currentUser?.username || '未知用户')}
+                  </h3>
+                  <div className="flex items-center space-x-2">
+                    <span className={`px-2 py-1 text-xs rounded-full font-medium ${
+                      loading ? 'bg-gray-100 text-gray-400' :
+                      isProfileComplete() ? 'bg-green-100 text-green-800' :
+                      'bg-orange-100 text-orange-800'
+                    }`}>
+                      {loading ? '加载中' : (isProfileComplete() ? '信息完整' : '待完善')}
+                    </span>
+                    <span className={`text-sm font-medium ${
+                      loading ? 'text-gray-400' :
+                      getCompletionRate() >= 80 ? 'text-green-600' :
+                      getCompletionRate() >= 50 ? 'text-orange-600' : 'text-red-600'
+                    }`}>
+                      {loading ? '--' : `${getCompletionRate()}%`}
+                    </span>
+                  </div>
+                </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                   <div>
                     <span className="text-text-secondary">学号：</span>
-                    <span className="text-text-primary font-medium">2021001</span>
+                    <span className="text-text-primary font-medium">
+                      {loading ? '加载中...' : (currentUser?.user_number || currentUser?.username || '未知')}
+                    </span>
                   </div>
                   <div>
                     <span className="text-text-secondary">班级：</span>
-                    <span className="text-text-primary font-medium">计算机科学与技术1班</span>
+                    <span className="text-text-primary font-medium">
+                      {loading ? '加载中...' : (currentUser?.class_name || '未知班级')}
+                    </span>
                   </div>
                   <div>
                     <span className="text-text-secondary">学籍状态：</span>
-                    <span className="text-green-600 font-medium">在读</span>
+                    <span className="text-green-600 font-medium">
+                      {loading ? '加载中...' : (currentUser?.status === 'active' ? '在读' : '其他')}
+                    </span>
                   </div>
                   <div>
                     <span className="text-text-secondary">入学年份：</span>
-                    <span className="text-text-primary font-medium">2021年</span>
+                    <span className="text-text-primary font-medium">
+                      {loading ? '加载中...' : (currentUser?.grade || '未知')}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -237,45 +288,88 @@ const StudentMyProfile: React.FC = () => {
               <div className="space-y-4">
                 <div className="flex justify-between">
                   <span className="text-text-secondary">姓名：</span>
-                  <span className="text-text-primary font-medium">李小明</span>
+                  <span className="text-text-primary font-medium">
+                    {loading ? '加载中...' : (studentProfile?.full_name || currentUser?.full_name || '未知')}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-text-secondary">性别：</span>
-                  <span className="text-text-primary font-medium">男</span>
+                  <span className="text-text-primary font-medium">
+                    {loading ? '加载中...' : (studentProfile?.gender === 'male' ? '男' : 
+                                            studentProfile?.gender === 'female' ? '女' : 
+                                            studentProfile?.gender || '未知')}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-text-secondary">身份证号：</span>
+                  <span className="text-text-primary font-medium">
+                    {loading ? '加载中...' : (studentProfile?.id_card || '未知')}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-text-secondary">民族：</span>
-                  <span className="text-text-primary font-medium">汉族</span>
+                  <span className="text-text-primary font-medium">
+                    {loading ? '加载中...' : (studentProfile?.nationality || '未知')}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-text-secondary">出生日期：</span>
-                  <span className="text-text-primary font-medium">2003年5月15日</span>
+                  <span className="text-text-primary font-medium">
+                    {loading ? '加载中...' : (studentProfile?.birth_date || '未知')}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-text-secondary">政治面貌：</span>
-                  <span className="text-text-primary font-medium">共青团员</span>
+                  <span className="text-text-primary font-medium">
+                    {loading ? '加载中...' : (studentProfile?.political_status || '未知')}
+                  </span>
                 </div>
               </div>
               <div className="space-y-4">
                 <div className="flex justify-between">
                   <span className="text-text-secondary">联系电话：</span>
-                  <span className="text-text-primary font-medium">138****5678</span>
+                  <span className="text-text-primary font-medium">
+                    {loading ? '加载中...' : (studentProfile?.phone || currentUser?.phone || '未知')}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-text-secondary">电子邮箱：</span>
-                  <span className="text-text-primary font-medium">lixiaoming@example.com</span>
+                  <span className="text-text-primary font-medium">
+                    {loading ? '加载中...' : (currentUser?.email || '未知')}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-text-secondary">家庭住址：</span>
-                  <span className="text-text-primary font-medium">河南省郑州市金水区</span>
+                  <span className="text-text-primary font-medium">
+                    {loading ? '加载中...' : (studentProfile?.home_address || '未知')}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-text-secondary">紧急联系人：</span>
-                  <span className="text-text-primary font-medium">李建国</span>
+                  <span className="text-text-primary font-medium">
+                    {loading ? '加载中...' : (studentProfile?.emergency_contact || '未知')}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-text-secondary">紧急联系电话：</span>
-                  <span className="text-text-primary font-medium">139****9876</span>
+                  <span className="text-text-primary font-medium">
+                    {loading ? '加载中...' : (studentProfile?.emergency_phone || '未知')}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-text-secondary">个人状态：</span>
+                  <span className={`font-medium ${
+                    loading ? 'text-gray-400' :
+                    studentProfile?.profile_status === 'approved' ? 'text-green-600' :
+                    studentProfile?.profile_status === 'pending' ? 'text-orange-600' :
+                    'text-red-600'
+                  }`}>
+                    {loading ? '加载中...' : 
+                     studentProfile?.profile_status === 'approved' ? '已审核' :
+                     studentProfile?.profile_status === 'pending' ? '待审核' :
+                     studentProfile?.profile_status === 'rejected' ? '已驳回' : '未填写'
+                    }
+                  </span>
                 </div>
               </div>
             </div>
@@ -288,45 +382,65 @@ const StudentMyProfile: React.FC = () => {
               <div className="space-y-4">
                 <div className="flex justify-between">
                   <span className="text-text-secondary">院系：</span>
-                  <span className="text-text-primary font-medium">计算机学院</span>
+                  <span className="text-text-primary font-medium">
+                    {loading ? '加载中...' : (currentUser?.department || '未知')}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-text-secondary">专业：</span>
-                  <span className="text-text-primary font-medium">计算机科学与技术</span>
+                  <span className="text-text-primary font-medium">
+                    {loading ? '加载中...' : (currentUser?.major || '未知')}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-text-secondary">班级：</span>
-                  <span className="text-text-primary font-medium">计算机科学与技术1班</span>
+                  <span className="text-text-primary font-medium">
+                    {loading ? '加载中...' : (currentUser?.class_name || '未知')}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-text-secondary">入学年份：</span>
-                  <span className="text-text-primary font-medium">2021年</span>
+                  <span className="text-text-primary font-medium">
+                    {loading ? '加载中...' : (currentUser?.enrollment_year || '未知')}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-text-secondary">学制：</span>
-                  <span className="text-text-primary font-medium">四年</span>
+                  <span className="text-text-primary font-medium">
+                    {loading ? '加载中...' : (currentUser?.study_duration || '未知')}
+                  </span>
                 </div>
               </div>
               <div className="space-y-4">
                 <div className="flex justify-between">
                   <span className="text-text-secondary">学籍状态：</span>
-                  <span className="text-green-600 font-medium">在读</span>
+                  <span className="text-green-600 font-medium">
+                    {loading ? '加载中...' : (currentUser?.status === 'active' ? '在读' : currentUser?.status || '未知')}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-text-secondary">辅导员：</span>
-                  <span className="text-text-primary font-medium">张老师</span>
+                  <span className="text-text-primary font-medium">
+                    {loading ? '加载中...' : (currentUser?.counselor || '未知')}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-text-secondary">入学方式：</span>
-                  <span className="text-text-primary font-medium">普通高考</span>
+                  <span className="text-text-primary font-medium">
+                    {loading ? '加载中...' : (currentUser?.admission_type || '未知')}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-text-secondary">生源地：</span>
-                  <span className="text-text-primary font-medium">河南省郑州市</span>
+                  <span className="text-text-primary font-medium">
+                    {loading ? '加载中...' : (currentUser?.hometown || '未知')}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-text-secondary">高考成绩：</span>
-                  <span className="text-text-primary font-medium">625分</span>
+                  <span className="text-text-primary font-medium">
+                    {loading ? '加载中...' : (currentUser?.gaokao_score || '未知')}
+                  </span>
                 </div>
               </div>
             </div>

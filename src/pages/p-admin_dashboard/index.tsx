@@ -1,15 +1,35 @@
 
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import styles from './styles.module.css';
+import { UserWithRole } from '../../types/user';
 
 const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
+  const [currentUser, setCurrentUser] = useState<UserWithRole | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const loadUserInfo = () => {
+      try {
+        const userInfo = localStorage.getItem('user_info');
+        if (userInfo) {
+          const userData = JSON.parse(userInfo);
+          setCurrentUser(userData);
+        }
+      } catch (error) {
+        console.error('加载用户信息失败:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     const originalTitle = document.title;
     document.title = '超级管理平台 - 学档通';
+    
+    loadUserInfo();
+    
     return () => { document.title = originalTitle; };
   }, []);
 
@@ -66,8 +86,12 @@ const AdminDashboard: React.FC = () => {
                 className="w-8 h-8 rounded-full" 
               />
               <div className="text-sm">
-                <div className="font-medium text-text-primary">管理员</div>
-                <div className="text-text-secondary">超级管理员</div>
+                <div className="font-medium text-text-primary">
+                  {loading ? '加载中...' : (currentUser?.full_name || currentUser?.username || '未知管理员')}
+                </div>
+                <div className="text-text-secondary">
+                  {loading ? '加载中...' : (currentUser?.role_name || '超级管理员')}
+                </div>
               </div>
               <i className="fas fa-chevron-down text-xs text-text-secondary"></i>
             </div>
@@ -134,14 +158,21 @@ const AdminDashboard: React.FC = () => {
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-2xl font-bold text-text-primary mb-2">欢迎回来，管理员</h2>
+              <h2 className="text-2xl font-bold text-text-primary mb-2">
+                欢迎回来，{loading ? '加载中...' : (currentUser?.full_name || currentUser?.username || '管理员')}
+              </h2>
               <nav className="text-sm text-text-secondary">
                 <span>首页</span>
               </nav>
             </div>
             <div className="text-right">
               <div className="text-sm text-text-secondary">今天是</div>
-              <div className="text-lg font-medium text-text-primary">2024年1月15日 星期一</div>
+              <div className="text-lg font-medium text-text-primary">{new Date().toLocaleDateString('zh-CN', { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric',
+                weekday: 'long'
+              })}</div>
             </div>
           </div>
         </div>

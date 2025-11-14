@@ -1,17 +1,51 @@
 
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import styles from './styles.module.css';
+import { UserWithRole } from '../../types/user';
+import { useAuth } from '../../hooks/useAuth';
+import useStudentProfile from '../../hooks/useStudentProfile';
 
 const StudentDashboard: React.FC = () => {
   const navigate = useNavigate();
+  const { user: currentUser, loading: authLoading, needsProfileCompletion, clearProfileCompletionReminder } = useAuth();
+  const [showProfileReminder, setShowProfileReminder] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  // 使用useStudentProfile hook获取个人信息状态
+  const { 
+    profile, 
+    loading: profileLoading, 
+    getCompletionRate,
+    isProfileComplete 
+  } = useStudentProfile(currentUser?.id || '');
 
   useEffect(() => {
     const originalTitle = document.title;
     document.title = '学生服务平台 - 学档通';
+    
+    // 检查是否需要显示个人信息完成提醒
+    if (needsProfileCompletion()) {
+      setShowProfileReminder(true);
+    }
+    
+    setLoading(false);
+    
     return () => { document.title = originalTitle; };
-  }, []);
+  }, [needsProfileCompletion]);
+
+  // 处理关闭提醒
+  const handleCloseReminder = () => {
+    setShowProfileReminder(false);
+    clearProfileCompletionReminder();
+  };
+
+  // 立即填写个人信息
+  const handleFillProfile = () => {
+    handleCloseReminder();
+    navigate('/student-profile-edit');
+  };
 
   const handleNotificationClick = () => {
     alert('您有2条新消息：\n1. 联系方式修改申请已提交\n2. 期末考试成绩已公布');
@@ -55,7 +89,7 @@ const StudentDashboard: React.FC = () => {
               <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">2</span>
             </button>
             
-            {/* 用户信息 */}
+              {/* 用户信息 */}
             <Link 
               to="/student-my-profile"
               className="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 rounded-lg p-2 transition-colors"
@@ -66,8 +100,12 @@ const StudentDashboard: React.FC = () => {
                 className="w-8 h-8 rounded-full" 
               />
               <div className="text-sm">
-                <div className="font-medium text-text-primary">李小明</div>
-                <div className="text-text-secondary">计算机科学与技术1班</div>
+                <div className="font-medium text-text-primary">
+                  {loading ? '加载中...' : (currentUser?.full_name || currentUser?.username || '未知用户')}
+                </div>
+                <div className="text-text-secondary">
+                  {loading ? '加载中...' : (currentUser?.class_name || '未知班级')}
+                </div>
               </div>
               <i className="fas fa-chevron-down text-xs text-text-secondary"></i>
             </Link>
@@ -163,29 +201,105 @@ const StudentDashboard: React.FC = () => {
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-2xl font-bold text-text-primary mb-2">欢迎回来，李小明同学</h2>
+              <h2 className="text-2xl font-bold text-text-primary mb-2">
+                欢迎回来，{loading ? '加载中...' : (currentUser?.full_name || currentUser?.username || '同学')}同学
+              </h2>
               <nav className="text-sm text-text-secondary">
                 <span>首页</span>
               </nav>
             </div>
             <div className="text-right">
               <div className="text-sm text-text-secondary">今天是</div>
-              <div className="text-lg font-medium text-text-primary">2024年1月15日 星期一</div>
+              <div className="text-lg font-medium text-text-primary">{new Date().toLocaleDateString('zh-CN', { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric',
+                weekday: 'long'
+              })}</div>
             </div>
           </div>
         </div>
+
+        {/* 个人信息完成提醒 */}
+        {showProfileReminder && (
+          <section className="mb-6">
+            <div className="bg-gradient-to-r from-orange-50 to-orange-100 border-l-4 border-orange-500 p-6 rounded-lg shadow-sm">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
+                    <i className="fas fa-user-edit text-orange-600 text-xl"></i>
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-orange-900">首次登录提醒</h3>
+                    <p className="text-orange-700 mt-1">
+                      检测到您是首次登录系统，请及时完善个人信息以使用完整功能。
+                    </p>
+                    <p className="text-sm text-orange-600 mt-2">
+                      个人信息完成度：
+                      <span className="font-bold ml-2">
+                        {profileLoading ? '加载中...' : `${getCompletionRate()}%`}
+                      </span>
+                    </p>
+                  </div>
+                </div>
+                <div className="flex space-x-3">
+                  <button 
+                    onClick={handleCloseReminder}
+                    className="px-4 py-2 border border-orange-300 text-orange-700 rounded-lg hover:bg-orange-50 transition-colors"
+                  >
+                    稍后再说
+                  </button>
+                  <button 
+                    onClick={handleFillProfile}
+                    className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
+                  >
+                    立即填写
+                  </button>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* 数据概览区 */}
         <section className="mb-8">
           <h3 className="text-lg font-semibold text-text-primary mb-4">个人概览</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* 个人信息完成度 */}
+            <div className={`bg-white rounded-xl shadow-card p-6 ${styles.cardHover} transition-all duration-300`}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-text-secondary text-sm mb-1">个人信息完成度</p>
+                  <p className={`text-3xl font-bold ${
+                    getCompletionRate() >= 80 ? 'text-green-600' : 
+                    getCompletionRate() >= 50 ? 'text-orange-600' : 'text-red-600'
+                  }`}>
+                    {profileLoading ? '--' : `${getCompletionRate()}%`}
+                  </p>
+                  <p className="text-text-secondary text-sm mt-1">
+                    {profileLoading ? '加载中...' : 
+                     isProfileComplete() ? '已完成' : '需完善'}
+                  </p>
+                </div>
+                <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
+                  getCompletionRate() >= 80 ? 'bg-gradient-to-br from-green-400 to-green-600' : 
+                  getCompletionRate() >= 50 ? 'bg-gradient-to-br from-orange-400 to-orange-600' : 
+                  'bg-gradient-to-br from-red-400 to-red-600'
+                }`}>
+                  <i className="fas fa-user-check text-white text-xl"></i>
+                </div>
+              </div>
+            </div>
+
             {/* 学籍状态 */}
             <div className={`bg-white rounded-xl shadow-card p-6 ${styles.cardHover} transition-all duration-300`}>
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-text-secondary text-sm mb-1">学籍状态</p>
                   <p className="text-xl font-bold text-green-600">在读</p>
-                  <p className="text-text-secondary text-sm mt-1">计算机科学与技术1班</p>
+                  <p className="text-text-secondary text-sm mt-1">
+                    {loading ? '加载中...' : (currentUser?.class_name || '未知班级')}
+                  </p>
                 </div>
                 <div className="w-12 h-12 bg-gradient-to-br from-green-400 to-green-600 rounded-lg flex items-center justify-center">
                   <i className="fas fa-user-graduate text-white text-xl"></i>
@@ -198,25 +312,14 @@ const StudentDashboard: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-text-secondary text-sm mb-1">待办事项</p>
-                  <p className="text-3xl font-bold text-orange-600">1</p>
-                  <p className="text-text-secondary text-sm mt-1">联系方式修改待审核</p>
+                  <p className="text-3xl font-bold text-orange-600">{profileLoading ? '0' : (isProfileComplete() ? '0' : '1')}</p>
+                  <p className="text-text-secondary text-sm mt-1">
+                    {profileLoading ? '加载中...' : 
+                     isProfileComplete() ? '无待办事项' : '完善个人信息'}
+                  </p>
                 </div>
                 <div className="w-12 h-12 bg-gradient-to-br from-orange-400 to-orange-600 rounded-lg flex items-center justify-center">
                   <i className="fas fa-tasks text-white text-xl"></i>
-                </div>
-              </div>
-            </div>
-
-            {/* 已获学分 */}
-            <div className={`bg-white rounded-xl shadow-card p-6 ${styles.cardHover} transition-all duration-300`}>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-text-secondary text-sm mb-1">已获学分</p>
-                  <p className="text-3xl font-bold text-blue-600">128</p>
-                  <p className="text-text-secondary text-sm mt-1">总学分：140</p>
-                </div>
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-blue-600 rounded-lg flex items-center justify-center">
-                  <i className="fas fa-book text-white text-xl"></i>
                 </div>
               </div>
             </div>
