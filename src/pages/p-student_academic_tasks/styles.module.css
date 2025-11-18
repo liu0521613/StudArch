@@ -1,0 +1,89 @@
+/* 页面布局样式 */
+.pageWrapper {
+  min-height: 100vh;
+  background-color: #f8fafc;
+}
+
+/* 侧边栏动画 */
+.sidebarTransition {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 导航项样式 */
+.navItem {
+  color: #64748b;
+  text-decoration: none;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.navItem:hover {
+  background-color: #f1f5f9;
+  color: #475569;
+  transform: translateX(2px);
+}
+
+.navItemActive {
+  background-color: #3b82f6;
+  color: white !important;
+}
+
+.navItemActive:hover {
+  background-color: #2563eb;
+}
+
+/* 卡片悬停效果 */
+.cardHover {
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.cardHover:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+/* 进度条样式 */
+.progressBar {
+  width: 100%;
+  height: 8px;
+  background-color: #e2e8f0;
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  border-radius: 9999px;
+  transition: width 0.3s ease;
+}
+
+/* 任务状态样式 */
+.taskOverdue {
+  background-color: #fef2f2;
+  border-left: 4px solid #dc2626;
+}
+
+.taskUrgent {
+  background-color: #fff7ed;
+  border-left: 4px solid #ea580c;
+}
+
+.taskNormal {
+  background-color: #f8fafc;
+}
+
+.taskProgress {
+  transition: width 0.3s ease;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .pageWrapper main {
+    margin-left: 0;
+  }
+  
+  .pageWrapper aside {
+    transform: translateX(-100%);
+  }
+}

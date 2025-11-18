@@ -476,6 +476,14 @@ const StudentProfileEdit: React.FC = () => {
             <i className="fas fa-file-alt text-lg"></i>
             <span className="font-medium">信息查看与下载</span>
           </Link>
+          
+          <Link 
+            to="/student-academic-tasks" 
+            className={`${STYLES.navItem} flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors text-text-secondary`}
+          >
+            <i className="fas fa-book text-lg"></i>
+            <span className="font-medium">教学任务与安排</span>
+          </Link>
         </nav>
       </aside>
 

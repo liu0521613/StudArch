@@ -164,34 +164,13 @@ const StudentDashboard: React.FC = () => {
             <span className="font-medium">信息查看与下载</span>
           </Link>
           
-          {/* 教学任务与安排相关导航 */}
-          <div className="pt-4 mt-4 border-t border-border-light">
-            <h3 className="px-4 text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2">教学任务与安排</h3>
-            
-            <Link 
-              to="/student-task-list" 
-              className={`${styles.navItem} flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors text-text-secondary`}
-            >
-              <i className="fas fa-tasks text-lg"></i>
-              <span className="font-medium">教学任务</span>
-            </Link>
-            
-            <Link 
-              to="/student-course-schedule" 
-              className={`${styles.navItem} flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors text-text-secondary`}
-            >
-              <i className="fas fa-calendar-alt text-lg"></i>
-              <span className="font-medium">课程安排</span>
-            </Link>
-            
-            <Link 
-              to="/student-task-progress" 
-              className={`${styles.navItem} flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors text-text-secondary`}
-            >
-              <i className="fas fa-chart-line text-lg"></i>
-              <span className="font-medium">完成情况</span>
-            </Link>
-          </div>
+          <Link 
+            to="/student-academic-tasks" 
+            className={`${styles.navItem} flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors text-text-secondary`}
+          >
+            <i className="fas fa-book text-lg"></i>
+            <span className="font-medium">教学任务与安排</span>
+          </Link>
         </nav>
       </aside>
 
