@@ -30,9 +30,7 @@ const StudentMyProfile: React.FC = () => {
   const tabs: TabType[] = [
     { id: 'basic', label: '基本信息', content: 'basic-content' },
     { id: 'academic', label: '学籍信息', content: 'academic-content' },
-    { id: 'study', label: '学业信息', content: 'study-content' },
     { id: 'awards', label: '奖惩信息', content: 'awards-content' },
-    { id: 'practice', label: '社会实践', content: 'practice-content' },
     { id: 'graduation', label: '毕业去向', content: 'graduation-content' }
   ];
 
@@ -66,10 +64,7 @@ const StudentMyProfile: React.FC = () => {
     }
   };
 
-  const handleNotificationClick = () => {
-    // 消息通知功能
-    console.log('Notification clicked');
-  };
+
 
   const handleUserInfoClick = () => {
     // 用户信息点击
@@ -91,15 +86,6 @@ const StudentMyProfile: React.FC = () => {
           
           {/* 用户信息和操作 */}
           <div className="flex items-center space-x-4">
-            {/* 消息通知 */}
-            <button 
-              onClick={handleNotificationClick}
-              className="relative p-2 text-text-secondary hover:text-secondary transition-colors"
-            >
-              <i className="fas fa-bell text-lg"></i>
-              <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">1</span>
-            </button>
-            
             {/* 用户信息 */}
             <div 
               onClick={handleUserInfoClick}
@@ -173,6 +159,14 @@ const StudentMyProfile: React.FC = () => {
           >
             <i className="fas fa-file-alt text-lg"></i>
             <span className="font-medium">信息查看与下载</span>
+          </Link>
+          
+          <Link 
+            to="/student-academic-tasks" 
+            className={`${styles.navItem} flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors text-text-secondary`}
+          >
+            <i className="fas fa-book text-lg"></i>
+            <span className="font-medium">教学任务与安排</span>
           </Link>
         </nav>
       </aside>
@@ -446,88 +440,7 @@ const StudentMyProfile: React.FC = () => {
             </div>
           </div>
 
-          {/* 学业信息 */}
-          <div className={`${styles.tabContent} ${activeTab !== 'study' ? styles.tabContentHidden : ''} bg-white rounded-xl shadow-card p-6`}>
-            <h4 className="text-lg font-semibold text-text-primary mb-4">学业信息</h4>
-            
-            {/* 总体学业情况 */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-secondary">3.78</div>
-                <div className="text-sm text-text-secondary">平均绩点</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">128</div>
-                <div className="text-sm text-text-secondary">已获学分</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-blue-600">160</div>
-                <div className="text-sm text-text-secondary">总学分</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-orange-600">80%</div>
-                <div className="text-sm text-text-secondary">完成进度</div>
-              </div>
-            </div>
 
-            {/* 成绩列表 */}
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">课程名称</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">课程代码</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">学期</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">成绩</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">学分</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">绩点</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-border-light">
-                  <tr>
-                    <td className="px-4 py-3 text-sm text-text-primary">高等数学A</td>
-                    <td className="px-4 py-3 text-sm text-text-primary">MATH101</td>
-                    <td className="px-4 py-3 text-sm text-text-primary">2021-2022学年第1学期</td>
-                    <td className="px-4 py-3 text-sm text-text-primary">85</td>
-                    <td className="px-4 py-3 text-sm text-text-primary">5</td>
-                    <td className="px-4 py-3 text-sm text-text-primary">3.5</td>
-                  </tr>
-                  <tr>
-                    <td className="px-4 py-3 text-sm text-text-primary">大学英语</td>
-                    <td className="px-4 py-3 text-sm text-text-primary">ENG101</td>
-                    <td className="px-4 py-3 text-sm text-text-primary">2021-2022学年第1学期</td>
-                    <td className="px-4 py-3 text-sm text-text-primary">92</td>
-                    <td className="px-4 py-3 text-sm text-text-primary">4</td>
-                    <td className="px-4 py-3 text-sm text-text-primary">4.0</td>
-                  </tr>
-                  <tr>
-                    <td className="px-4 py-3 text-sm text-text-primary">程序设计基础</td>
-                    <td className="px-4 py-3 text-sm text-text-primary">CS101</td>
-                    <td className="px-4 py-3 text-sm text-text-primary">2021-2022学年第2学期</td>
-                    <td className="px-4 py-3 text-sm text-text-primary">88</td>
-                    <td className="px-4 py-3 text-sm text-text-primary">4</td>
-                    <td className="px-4 py-3 text-sm text-text-primary">3.7</td>
-                  </tr>
-                  <tr>
-                    <td className="px-4 py-3 text-sm text-text-primary">数据结构</td>
-                    <td className="px-4 py-3 text-sm text-text-primary">CS201</td>
-                    <td className="px-4 py-3 text-sm text-text-primary">2022-2023学年第1学期</td>
-                    <td className="px-4 py-3 text-sm text-text-primary">95</td>
-                    <td className="px-4 py-3 text-sm text-text-primary">5</td>
-                    <td className="px-4 py-3 text-sm text-text-primary">4.0</td>
-                  </tr>
-                  <tr>
-                    <td className="px-4 py-3 text-sm text-text-primary">计算机网络</td>
-                    <td className="px-4 py-3 text-sm text-text-primary">CS301</td>
-                    <td className="px-4 py-3 text-sm text-text-primary">2022-2023学年第2学期</td>
-                    <td className="px-4 py-3 text-sm text-text-primary">81</td>
-                    <td className="px-4 py-3 text-sm text-text-primary">4</td>
-                    <td className="px-4 py-3 text-sm text-text-primary">3.2</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
 
           {/* 奖惩信息 */}
           <div className={`${styles.tabContent} ${activeTab !== 'awards' ? styles.tabContentHidden : ''} bg-white rounded-xl shadow-card p-6`}>
@@ -568,38 +481,7 @@ const StudentMyProfile: React.FC = () => {
             </div>
           </div>
 
-          {/* 社会实践 */}
-          <div className={`${styles.tabContent} ${activeTab !== 'practice' ? styles.tabContentHidden : ''} bg-white rounded-xl shadow-card p-6`}>
-            <h4 className="text-lg font-semibold text-text-primary mb-4">社会实践</h4>
-            <div className="space-y-4">
-              <div className="border border-border-light rounded-lg p-4">
-                <h5 className="font-medium text-text-primary mb-2">暑期社会实践</h5>
-                <p className="text-sm text-text-secondary mb-2">参与"乡村振兴"暑期社会实践活动，在河南省某乡村进行为期一个月的支教工作</p>
-                <div className="flex items-center justify-between text-xs text-text-secondary">
-                  <span>2022年7月-8月</span>
-                  <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full">已完成</span>
-                </div>
-              </div>
-              
-              <div className="border border-border-light rounded-lg p-4">
-                <h5 className="font-medium text-text-primary mb-2">志愿服务</h5>
-                <p className="text-sm text-text-secondary mb-2">参与校园疫情防控志愿服务，累计服务时长120小时</p>
-                <div className="flex items-center justify-between text-xs text-text-secondary">
-                  <span>2022年9月-12月</span>
-                  <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full">已完成</span>
-                </div>
-              </div>
-              
-              <div className="border border-border-light rounded-lg p-4">
-                <h5 className="font-medium text-text-primary mb-2">企业实习</h5>
-                <p className="text-sm text-text-secondary mb-2">在某知名互联网公司担任前端开发实习生，参与实际项目开发</p>
-                <div className="flex items-center justify-between text-xs text-text-secondary">
-                  <span>2023年7月-9月</span>
-                  <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full">已完成</span>
-                </div>
-              </div>
-            </div>
-          </div>
+
 
           {/* 毕业去向 */}
           <div className={`${styles.tabContent} ${activeTab !== 'graduation' ? styles.tabContentHidden : ''} bg-white rounded-xl shadow-card p-6`}>

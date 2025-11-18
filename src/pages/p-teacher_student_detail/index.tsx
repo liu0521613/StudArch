@@ -107,15 +107,15 @@ const TeacherStudentDetail: React.FC = () => {
     alert('档案信息已更新');
   };
 
-  // 录入成绩
+  // 录入收获与成果
   const handleAddGrade = () => {
     showModal(setShowAddGradeModal);
   };
 
   const handleSaveGrade = () => {
-    console.log('保存成绩信息');
+    console.log('保存收获与成果信息');
     hideModal(setShowAddGradeModal);
-    alert('成绩已录入');
+    alert('收获与成果已录入');
   };
 
   // 新增奖惩
@@ -222,14 +222,7 @@ const TeacherStudentDetail: React.FC = () => {
             <span className="font-medium">我的学生</span>
           </Link>
           
-          <Link 
-            to="/teacher-academic-management" 
-            className={`${styles.navItem} flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors text-text-secondary`}
-          >
-            <i className="fas fa-book text-lg"></i>
-            <span className="font-medium">学业信息管理</span>
-          </Link>
-          
+
           <Link 
             to="/teacher-graduation-management" 
             className={`${styles.navItem} flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors text-text-secondary`}
@@ -401,13 +394,6 @@ const TeacherStudentDetail: React.FC = () => {
               奖惩信息
             </button>
             <button 
-              onClick={() => handleTabChange('practice')}
-              className={`${activeTab === 'practice' ? styles.tabActive : styles.tabInactive} px-6 py-4 text-sm font-medium rounded-t-lg focus:outline-none transition-colors`}
-              role="tab"
-            >
-              社会实践
-            </button>
-            <button 
               onClick={() => handleTabChange('graduation')}
               className={`${activeTab === 'graduation' ? styles.tabActive : styles.tabInactive} px-6 py-4 text-sm font-medium rounded-t-lg focus:outline-none transition-colors`}
               role="tab"
@@ -478,12 +464,12 @@ const TeacherStudentDetail: React.FC = () => {
           {/* 学业信息内容 */}
           <div className={`${styles.tabContent} ${activeTab !== 'academic' ? styles.tabContentHidden : ''} p-6`}>
             <div className="flex items-center justify-between mb-4">
-              <h4 className="font-semibold text-text-primary">学业成绩</h4>
+              <h4 className="font-semibold text-text-primary">学业成果</h4>
               <button 
                 onClick={handleAddGrade}
                 className="px-4 py-2 bg-secondary text-white rounded-lg hover:bg-accent transition-colors text-sm"
               >
-                <i className="fas fa-plus mr-2"></i>录入成绩
+                <i className="fas fa-plus mr-2"></i>录入收获与成果
               </button>
             </div>
             
@@ -494,9 +480,9 @@ const TeacherStudentDetail: React.FC = () => {
                     <th className="px-4 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">课程名称</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">课程代码</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">学期</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">成绩</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">学分</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">绩点</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">收获</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">成果</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">证明</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">操作</th>
                   </tr>
                 </thead>
@@ -557,15 +543,15 @@ const TeacherStudentDetail: React.FC = () => {
             <div className="mt-6 grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="bg-gray-50 rounded-lg p-4 text-center">
                 <div className="text-2xl font-bold text-text-primary">3.73</div>
-                <div className="text-sm text-text-secondary">平均绩点</div>
+                <div className="text-sm text-text-secondary">平均证明</div>
               </div>
               <div className="bg-gray-50 rounded-lg p-4 text-center">
                 <div className="text-2xl font-bold text-text-primary">11.0</div>
-                <div className="text-sm text-text-secondary">已获学分</div>
+                <div className="text-sm text-text-secondary">总成果</div>
               </div>
               <div className="bg-gray-50 rounded-lg p-4 text-center">
                 <div className="text-2xl font-bold text-text-primary">88.3</div>
-                <div className="text-sm text-text-secondary">平均成绩</div>
+                <div className="text-sm text-text-secondary">平均收获</div>
               </div>
               <div className="bg-gray-50 rounded-lg p-4 text-center">
                 <div className="text-2xl font-bold text-text-primary">85%</div>
@@ -647,58 +633,6 @@ const TeacherStudentDetail: React.FC = () => {
                   <button className="text-red-600 hover:text-red-800 transition-colors">
                     <i className="fas fa-edit"></i>
                   </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* 社会实践内容 */}
-          <div className={`${styles.tabContent} ${activeTab !== 'practice' ? styles.tabContentHidden : ''} p-6`}>
-            <h4 className="font-semibold text-text-primary mb-4">社会实践经历</h4>
-            
-            <div className="space-y-4">
-              <div className="bg-white border border-border-light rounded-lg p-4">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1">
-                    <h5 className="font-medium text-text-primary">社区志愿者服务</h5>
-                    <p className="text-sm text-text-secondary mt-1">郑州市金水区社区服务中心</p>
-                  </div>
-                  <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded">2022年暑假</span>
-                </div>
-                <p className="text-sm text-text-secondary mb-3">参与社区疫情防控志愿服务，负责体温检测和信息登记工作，累计服务时长120小时。</p>
-                <div className="flex items-center space-x-4 text-xs text-text-secondary">
-                  <span><i className="fas fa-clock mr-1"></i>120小时</span>
-                  <span><i className="fas fa-file-alt mr-1"></i>已认证</span>
-                </div>
-              </div>
-              
-              <div className="bg-white border border-border-light rounded-lg p-4">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1">
-                    <h5 className="font-medium text-text-primary">科技创新大赛</h5>
-                    <p className="text-sm text-text-secondary mt-1">河南省大学生科技创新大赛</p>
-                  </div>
-                  <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded">2023年3月</span>
-                </div>
-                <p className="text-sm text-text-secondary mb-3">作为团队负责人，带领团队参加省级科技创新大赛，获得二等奖。</p>
-                <div className="flex items-center space-x-4 text-xs text-text-secondary">
-                  <span><i className="fas fa-trophy mr-1"></i>二等奖</span>
-                  <span><i className="fas fa-users mr-1"></i>团队负责人</span>
-                </div>
-              </div>
-              
-              <div className="bg-white border border-border-light rounded-lg p-4">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1">
-                    <h5 className="font-medium text-text-primary">企业实习</h5>
-                    <p className="text-sm text-text-secondary mt-1">郑州某科技有限公司</p>
-                  </div>
-                  <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded">2023年暑假</span>
-                </div>
-                <p className="text-sm text-text-secondary mb-3">在技术部门担任前端开发实习生，参与公司产品开发，掌握了React等前端技术。</p>
-                <div className="flex items-center space-x-4 text-xs text-text-secondary">
-                  <span><i className="fas fa-calendar mr-1"></i>2个月</span>
-                  <span><i className="fas fa-star mr-1"></i>优秀实习生</span>
                 </div>
               </div>
             </div>
@@ -870,7 +804,7 @@ const TeacherStudentDetail: React.FC = () => {
         </div>
       )}
 
-      {/* 录入成绩模态框 */}
+      {/* 录入收获与成果模态框 */}
       {showAddGradeModal && (
         <div className="fixed inset-0 z-50">
           <div 
@@ -880,7 +814,7 @@ const TeacherStudentDetail: React.FC = () => {
           <div className="relative flex items-center justify-center min-h-screen p-4">
             <div className={`${styles.modalEnter} bg-white rounded-xl shadow-lg w-full max-w-md`}>
               <div className="flex items-center justify-between p-6 border-b border-border-light">
-                <h3 className="text-lg font-semibold text-text-primary">录入成绩</h3>
+                <h3 className="text-lg font-semibold text-text-primary">录入收获与成果</h3>
                 <button 
                   onClick={() => hideModal(setShowAddGradeModal)}
                   className="text-text-secondary hover:text-text-primary transition-colors"
@@ -906,19 +840,19 @@ const TeacherStudentDetail: React.FC = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-text-primary mb-2">成绩</label>
+                    <label className="block text-sm font-medium text-text-primary mb-2">收获</label>
                     <input 
                       type="number" 
                       className="w-full px-3 py-2 border border-border-light rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary focus:border-transparent" 
-                      placeholder="请输入成绩"
+                      placeholder="请输入收获"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-text-primary mb-2">学分</label>
+                    <label className="block text-sm font-medium text-text-primary mb-2">成果</label>
                     <input 
                       type="number" 
                       className="w-full px-3 py-2 border border-border-light rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary focus:border-transparent" 
-                      placeholder="请输入学分"
+                      placeholder="请输入成果"
                     />
                   </div>
                 </div>

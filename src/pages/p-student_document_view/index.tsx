@@ -137,6 +137,13 @@ const StudentDocumentView: React.FC = () => {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [showDocumentModal, setShowDocumentModal] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
+  
+  // 文件上传相关状态
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [uploadFiles, setUploadFiles] = useState<File[]>([]);
+  const [uploadProgress, setUploadProgress] = useState<{[key: string]: number}>({});
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadedDocuments, setUploadedDocuments] = useState<Document[]>([]);
 
   const pageSize = 10;
 
@@ -296,6 +303,106 @@ const StudentDocumentView: React.FC = () => {
     alert(`文件 "${doc.name}" 下载成功！`);
   };
 
+  // 文件上传相关函数
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    setUploadFiles(prevFiles => [...prevFiles, ...files]);
+  };
+
+  const removeUploadFile = (index: number) => {
+    setUploadFiles(prevFiles => prevFiles.filter((_, i) => i !== index));
+  };
+
+  const uploadFilesToServer = async () => {
+    if (uploadFiles.length === 0) return;
+    
+    setIsUploading(true);
+    const newProgress: {[key: string]: number} = {};
+    const newDocs: Document[] = [];
+    
+    try {
+      for (let i = 0; i < uploadFiles.length; i++) {
+        const file = uploadFiles[i];
+        const fileId = `upload_${Date.now()}_${i}`;
+        newProgress[fileId] = 0;
+        setUploadProgress({...newProgress});
+        
+        // 模拟上传进度
+        for (let progress = 0; progress <= 100; progress += 10) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+          newProgress[fileId] = progress;
+          setUploadProgress({...newProgress});
+        }
+        
+        // 创建新的文档对象
+        const newDocument: Document = {
+          id: fileId,
+          name: file.name.replace(/\.[^/.]+$/, ""), // 移除文件扩展名
+          type: getFileType(file),
+          typeName: getFileTypeName(file),
+          date: new Date().toISOString().split('T')[0],
+          size: formatFileSize(file.size),
+          icon: getFileIcon(file)
+        };
+        
+        newDocs.push(newDocument);
+      }
+      
+      // 合并到当前文档列表
+      setCurrentDocuments(prev => [...newDocs, ...prev]);
+      setUploadedDocuments(prev => [...newDocs, ...prev]);
+      
+      // 重置上传状态
+      setUploadFiles([]);
+      setUploadProgress({});
+      setShowUploadModal(false);
+      
+      // 显示成功提示
+      alert(`成功上传 ${uploadFiles.length} 个文件！`);
+      
+    } catch (error) {
+      console.error('文件上传失败:', error);
+      alert('文件上传失败，请稍后重试！');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const getFileType = (file: File): string => {
+    const extension = file.name.split('.').pop()?.toLowerCase();
+    if (['pdf'].includes(extension || '')) return 'certificate';
+    if (['doc', 'docx'].includes(extension || '')) return 'transcript';
+    if (['jpg', 'jpeg', 'png', 'gif'].includes(extension || '')) return 'award';
+    return 'other';
+  };
+
+  const getFileTypeName = (file: File): string => {
+    const type = getFileType(file);
+    const typeNames: { [key: string]: string } = {
+      transcript: '成绩单',
+      certificate: '在校证明',
+      award: '获奖证明',
+      other: '其他'
+    };
+    return typeNames[type] || '其他';
+  };
+
+  const getFileIcon = (file: File): string => {
+    const extension = file.name.split('.').pop()?.toLowerCase();
+    if (['pdf'].includes(extension || '')) return 'fas fa-file-pdf';
+    if (['doc', 'docx'].includes(extension || '')) return 'fas fa-file-word';
+    if (['jpg', 'jpeg', 'png', 'gif'].includes(extension || '')) return 'fas fa-file-image';
+    return 'fas fa-file-alt';
+  };
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
   // 退出登录
   const handleLogout = () => {
     if (confirm('确定要退出登录吗？')) {
@@ -322,12 +429,6 @@ const StudentDocumentView: React.FC = () => {
           
           {/* 用户信息和操作 */}
           <div className="flex items-center space-x-4">
-            {/* 消息通知 */}
-            <button className="relative p-2 text-text-secondary hover:text-secondary transition-colors">
-              <i className="fas fa-bell text-lg"></i>
-              <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">2</span>
-            </button>
-            
             {/* 用户信息 */}
             <div className="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 rounded-lg p-2 transition-colors">
               <img 
@@ -395,6 +496,14 @@ const StudentDocumentView: React.FC = () => {
             <i className="fas fa-file-alt text-lg"></i>
             <span className="font-medium">信息查看与下载</span>
           </Link>
+          
+          <Link 
+            to="/student-academic-tasks" 
+            className={`${styles.navItem} flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors text-text-secondary`}
+          >
+            <i className="fas fa-book text-lg"></i>
+            <span className="font-medium">教学任务与安排</span>
+          </Link>
         </nav>
       </aside>
 
@@ -457,6 +566,12 @@ const StudentDocumentView: React.FC = () => {
               </div>
               
               <div className="flex items-center space-x-2">
+                <button 
+                  onClick={() => setShowUploadModal(true)}
+                  className="px-4 py-2 bg-secondary text-white text-sm rounded-lg hover:bg-accent transition-colors"
+                >
+                  <i className="fas fa-upload mr-2"></i>上传文件
+                </button>
                 <button 
                   onClick={applyFilters}
                   className="px-4 py-2 text-sm border border-border-light rounded-lg hover:bg-gray-50 transition-colors"
@@ -584,6 +699,140 @@ const StudentDocumentView: React.FC = () => {
           </div>
         </section>
       </main>
+
+      {/* 文件上传模态框 */}
+      {showUploadModal && (
+        <div className="fixed inset-0 z-50">
+          <div className={styles.modalBackdrop} onClick={() => !isUploading && setShowUploadModal(false)}></div>
+          <div className="relative flex items-center justify-center min-h-screen p-4">
+            <div className={`bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[80vh] overflow-hidden ${styles.modalEnter}`}>
+              {/* 模态框头部 */}
+              <div className="px-6 py-4 border-b border-border-light flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-text-primary">上传文件</h3>
+                <button 
+                  onClick={() => !isUploading && setShowUploadModal(false)}
+                  className="text-text-secondary hover:text-text-primary transition-colors disabled:opacity-50"
+                  disabled={isUploading}
+                >
+                  <i className="fas fa-times text-xl"></i>
+                </button>
+              </div>
+              
+              {/* 模态框内容 */}
+              <div className="px-6 py-4">
+                {/* 文件选择区域 */}
+                <div className="mb-6">
+                  <div className="border-2 border-dashed border-border-light rounded-lg p-8 text-center hover:border-secondary transition-colors">
+                    <input 
+                      type="file"
+                      multiple
+                      onChange={handleFileSelect}
+                      className="hidden"
+                      id="file-upload-input"
+                      accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif"
+                      disabled={isUploading}
+                    />
+                    <label 
+                      htmlFor="file-upload-input"
+                      className="cursor-pointer"
+                    >
+                      <i className="fas fa-cloud-upload-alt text-4xl text-secondary mb-4"></i>
+                      <p className="text-text-primary font-medium mb-2">点击选择文件或拖拽文件到此处</p>
+                      <p className="text-sm text-text-secondary">支持 PDF、DOC、DOCX、JPG、PNG、GIF 格式</p>
+                      <p className="text-sm text-text-secondary">单个文件大小不超过 10MB</p>
+                    </label>
+                  </div>
+                </div>
+
+                {/* 已选择的文件列表 */}
+                {uploadFiles.length > 0 && (
+                  <div className="mb-6">
+                    <h4 className="font-medium text-text-primary mb-3">已选择的文件 ({uploadFiles.length})</h4>
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      {uploadFiles.map((file, index) => (
+                        <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                          <div className="flex items-center space-x-3 flex-1">
+                            <i className={`fas ${getFileIcon(file)} text-secondary`}></i>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-text-primary truncate">{file.name}</p>
+                              <p className="text-xs text-text-secondary">{formatFileSize(file.size)}</p>
+                            </div>
+                          </div>
+                          {!isUploading && (
+                            <button 
+                              onClick={() => removeUploadFile(index)}
+                              className="text-red-500 hover:text-red-700 transition-colors"
+                            >
+                              <i className="fas fa-times"></i>
+                            </button>
+                          )}
+                          {isUploading && (
+                            <div className="w-16">
+                              <div className="text-xs text-text-secondary mb-1">
+                                {Object.entries(uploadProgress).find(([key]) => key.includes(`_${index}`))?.[1] || 0}%
+                              </div>
+                              <div className="w-full bg-gray-200 rounded-full h-1">
+                                <div 
+                                  className="bg-secondary h-1 rounded-full transition-all duration-300"
+                                  style={{ width: `${Object.entries(uploadProgress).find(([key]) => key.includes(`_${index}`))?.[1] || 0}%` }}
+                                ></div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 上传提示 */}
+                <div className="p-4 bg-blue-50 rounded-lg">
+                  <div className="flex items-start space-x-2">
+                    <i className="fas fa-info-circle text-blue-600 mt-1"></i>
+                    <div className="text-sm text-blue-800">
+                      <p className="font-medium mb-1">上传说明：</p>
+                      <ul className="list-disc list-inside space-y-1 text-xs">
+                        <li>请上传有效的证明材料，如证书、成绩单等</li>
+                        <li>文件格式支持 PDF、DOC、DOCX、JPG、PNG、GIF</li>
+                        <li>单个文件大小不超过 10MB</li>
+                        <li>上传的文件将保存在您的个人文档库中</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* 模态框底部 */}
+              <div className="px-6 py-4 border-t border-border-light flex items-center justify-end space-x-3">
+                <button 
+                  onClick={() => !isUploading && setShowUploadModal(false)}
+                  className="px-4 py-2 border border-border-light rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                  disabled={isUploading}
+                >
+                  取消
+                </button>
+                <button 
+                  onClick={uploadFilesToServer}
+                  disabled={uploadFiles.length === 0 || isUploading}
+                  className="px-4 py-2 bg-secondary text-white rounded-lg hover:bg-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                >
+                  {isUploading ? (
+                    <>
+                      <i className="fas fa-spinner fa-spin mr-2"></i>
+                      上传中...
+                    </>
+                  ) : (
+                    <>
+                      <i className="fas fa-upload mr-2"></i>
+                      开始上传
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 文件预览模态框 */}
       {showDocumentModal && selectedDocument && (
