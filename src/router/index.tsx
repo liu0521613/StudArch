@@ -12,7 +12,7 @@ import P_admin_system_settings from '../pages/p-admin_system_settings';
 import P_teacher_dashboard from '../pages/p-teacher_dashboard';
 import P_teacher_student_list from '../pages/p-teacher_student_list';
 import P_teacher_student_detail from '../pages/p-teacher_student_detail';
-import P_teacher_academic_management from '../pages/p-teacher_academic_management';
+
 import P_teacher_graduation_management from '../pages/p-teacher_graduation_management';
 import P_teacher_report from '../pages/p-teacher_report';
 import P_student_dashboard from '../pages/p-student_dashboard';
@@ -139,17 +139,7 @@ const router = createBrowserRouter([
     ),
     errorElement: <ErrorPage />,
   },
-      {
-    path: '/teacher-academic-management',
-    element: (
-      <ErrorBoundary>
-        <AuthGuard requiredRole="teacher">
-          <P_teacher_academic_management />
-        </AuthGuard>
-      </ErrorBoundary>
-    ),
-    errorElement: <ErrorPage />,
-  },
+
       {
     path: '/teacher-graduation-management',
     element: (

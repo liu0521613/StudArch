@@ -461,11 +461,7 @@ const TeacherReportPage: React.FC = () => {
             <span className="font-medium">我的学生</span>
           </Link>
           
-          <Link to="/teacher-academic-management" className={`${styles.navItem} flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors text-text-secondary`}>
-            <i className="fas fa-book text-lg"></i>
-            <span className="font-medium">学业信息管理</span>
-          </Link>
-          
+
           <Link to="/teacher-graduation-management" className={`${styles.navItem} flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors text-text-secondary`}>
             <i className="fas fa-rocket text-lg"></i>
             <span className="font-medium">毕业去向管理</span>

@@ -146,14 +146,7 @@ const TeacherDashboard: React.FC = () => {
             <span className="font-medium">我的学生</span>
           </Link>
           
-          <Link 
-            to="/teacher-academic-management" 
-            className={`${styles.navItem} flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors text-text-secondary`}
-          >
-            <i className="fas fa-book text-lg"></i>
-            <span className="font-medium">学业信息管理</span>
-          </Link>
-          
+
           <Link 
             to="/teacher-graduation-management" 
             className={`${styles.navItem} flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors text-text-secondary`}
@@ -200,24 +193,7 @@ const TeacherDashboard: React.FC = () => {
         {/* 数据概览区 */}
         <section className="mb-8">
           <h3 className="text-lg font-semibold text-text-primary mb-4">数据概览</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {/* 负责班级数 */}
-            <div className={`bg-white rounded-xl shadow-card p-6 ${styles.cardHover} transition-all duration-300`}>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-text-secondary text-sm mb-1">负责班级</p>
-                  <p className="text-3xl font-bold text-text-primary">3</p>
-                  <p className="text-secondary text-sm mt-1">
-                    <i className="fas fa-arrow-up mr-1"></i>
-                    较上月 +1
-                  </p>
-                </div>
-                <div className="w-12 h-12 bg-gradient-to-br from-secondary to-accent rounded-lg flex items-center justify-center">
-                  <i className="fas fa-chalkboard-teacher text-white text-xl"></i>
-                </div>
-              </div>
-            </div>
-
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {/* 学生总数 */}
             <div className={`bg-white rounded-xl shadow-card p-6 ${styles.cardHover} transition-all duration-300`}>
               <div className="flex items-center justify-between">
@@ -553,21 +529,7 @@ const TeacherDashboard: React.FC = () => {
         <section className="mb-8">
           <h3 className="text-lg font-semibold text-text-primary mb-4">快捷操作</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* 录入成绩 */}
-            <Link 
-              to="/teacher-academic-management"
-              className={`bg-white rounded-xl shadow-card p-6 ${styles.cardHover} transition-all duration-300 cursor-pointer block`}
-            >
-              <div className="flex items-center space-x-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-secondary to-accent rounded-lg flex items-center justify-center">
-                  <i className="fas fa-edit text-white text-xl"></i>
-                </div>
-                <div>
-                  <h4 className="font-medium text-text-primary">录入成绩</h4>
-                  <p className="text-sm text-text-secondary">批量或单个录入学生成绩</p>
-                </div>
-              </div>
-            </Link>
+
 
             {/* 审核毕业去向 */}
             <Link 
