@@ -1,0 +1,296 @@
+import { UserWithRole } from '../types/user';
+
+// 演示用的学生数据 - 临时解决方案
+export const demoAuthorizedStudents: UserWithRole[] = [
+  {
+    id: '00000000-0000-0000-0000-000000000101',
+    username: 'student001',
+    email: 'student001@university.edu.cn',
+    user_number: 'ST2021001',
+    full_name: '张小明',
+    role_id: '3',
+    status: 'active',
+    phone: '138****1234',
+    department: '计算机学院',
+    grade: '2021级',
+    class_name: '计算机科学与技术1班',
+    created_at: '2021-09-01',
+    updated_at: '2024-01-01',
+    role: {
+      id: '3',
+      role_name: 'student',
+      role_description: '学生',
+      permissions: {},
+      is_system_default: true,
+      created_at: '2021-01-01',
+      updated_at: '2021-01-01'
+    }
+  },
+  {
+    id: '00000000-0000-0000-0000-000000000102',
+    username: 'student002',
+    email: 'student002@university.edu.cn',
+    user_number: 'ST2021002',
+    full_name: '李小红',
+    role_id: '3',
+    status: 'active',
+    phone: '139****5678',
+    department: '计算机学院',
+    grade: '2021级',
+    class_name: '计算机科学与技术2班',
+    created_at: '2021-09-01',
+    updated_at: '2024-01-01',
+    role: {
+      id: '3',
+      role_name: 'student',
+      role_description: '学生',
+      permissions: {},
+      is_system_default: true,
+      created_at: '2021-01-01',
+      updated_at: '2021-01-01'
+    }
+  },
+  {
+    id: 'demo-3',
+    username: 'student003',
+    email: 'student003@university.edu.cn',
+    user_number: 'ST2021003',
+    full_name: '王大力',
+    role_id: '3',
+    status: 'active',
+    phone: '137****9012',
+    department: '软件学院',
+    grade: '2021级',
+    class_name: '软件工程1班',
+    created_at: '2021-09-01',
+    updated_at: '2024-01-01',
+    role: {
+      id: '3',
+      role_name: 'student',
+      role_description: '学生',
+      permissions: {},
+      is_system_default: true,
+      created_at: '2021-01-01',
+      updated_at: '2021-01-01'
+    }
+  },
+  {
+    id: 'demo-4',
+    username: 'student004',
+    email: 'student004@university.edu.cn',
+    user_number: 'ST2021004',
+    full_name: '刘美丽',
+    role_id: '3',
+    status: 'active',
+    phone: '136****3456',
+    department: '软件学院',
+    grade: '2021级',
+    class_name: '软件工程2班',
+    created_at: '2021-09-01',
+    updated_at: '2024-01-01',
+    role: {
+      id: '3',
+      role_name: 'student',
+      role_description: '学生',
+      permissions: {},
+      is_system_default: true,
+      created_at: '2021-01-01',
+      updated_at: '2021-01-01'
+    }
+  },
+  {
+    id: 'demo-5',
+    username: 'student005',
+    email: 'student005@university.edu.cn',
+    user_number: 'ST2021005',
+    full_name: '陈志强',
+    role_id: '3',
+    status: 'active',
+    phone: '135****7890',
+    department: '信息工程学院',
+    grade: '2022级',
+    class_name: '信息工程1班',
+    created_at: '2022-09-01',
+    updated_at: '2024-01-01',
+    role: {
+      id: '3',
+      role_name: 'student',
+      role_description: '学生',
+      permissions: {},
+      is_system_default: true,
+      created_at: '2021-01-01',
+      updated_at: '2021-01-01'
+    }
+  },
+  {
+    id: 'demo-6',
+    username: 'student006',
+    email: 'student006@university.edu.cn',
+    user_number: '2021006',
+    full_name: '赵文静',
+    role_id: '3',
+    status: 'active',
+    phone: '138****2345',
+    department: '信息工程学院',
+    grade: '2022级',
+    class_name: '信息工程2班',
+    created_at: '2022-09-01',
+    updated_at: '2024-01-01',
+    role: {
+      id: '3',
+      role_name: 'student',
+      role_description: '学生',
+      permissions: {},
+      is_system_default: true,
+      created_at: '2021-01-01',
+      updated_at: '2021-01-01'
+    }
+  },
+  {
+    id: 'demo-7',
+    username: 'student007',
+    email: 'student007@university.edu.cn',
+    user_number: '2021007',
+    full_name: '孙建华',
+    role_id: '3',
+    status: 'active',
+    phone: '139****6789',
+    department: '计算机学院',
+    grade: '2020级',
+    class_name: '计算机科学与技术3班',
+    created_at: '2020-09-01',
+    updated_at: '2024-01-01',
+    role: {
+      id: '3',
+      role_name: 'student',
+      role_description: '学生',
+      permissions: {},
+      is_system_default: true,
+      created_at: '2021-01-01',
+      updated_at: '2021-01-01'
+    }
+  },
+  {
+    id: 'demo-8',
+    username: 'student008',
+    email: 'student008@university.edu.cn',
+    user_number: '2021008',
+    full_name: '周雅婷',
+    role_id: '3',
+    status: 'active',
+    phone: '136****0123',
+    department: '计算机学院',
+    grade: '2020级',
+    class_name: '计算机科学与技术4班',
+    created_at: '2020-09-01',
+    updated_at: '2024-01-01',
+    role: {
+      id: '3',
+      role_name: 'student',
+      role_description: '学生',
+      permissions: {},
+      is_system_default: true,
+      created_at: '2021-01-01',
+      updated_at: '2021-01-01'
+    }
+  },
+  {
+    id: 'demo-9',
+    username: 'student009',
+    email: 'student009@university.edu.cn',
+    user_number: '2021009',
+    full_name: '吴志华',
+    role_id: '3',
+    status: 'active',
+    phone: '137****4567',
+    department: '软件学院',
+    grade: '2022级',
+    class_name: '软件工程3班',
+    created_at: '2022-09-01',
+    updated_at: '2024-01-01',
+    role: {
+      id: '3',
+      role_name: 'student',
+      role_description: '学生',
+      permissions: {},
+      is_system_default: true,
+      created_at: '2021-01-01',
+      updated_at: '2021-01-01'
+    }
+  },
+  {
+    id: 'demo-10',
+    username: 'student010',
+    email: 'student010@university.edu.cn',
+    user_number: '2021010',
+    full_name: '郑晓雯',
+    role_id: '3',
+    status: 'active',
+    phone: '135****8901',
+    department: '信息工程学院',
+    grade: '2021级',
+    class_name: '信息工程3班',
+    created_at: '2021-09-01',
+    updated_at: '2024-01-01',
+    role: {
+      id: '3',
+      role_name: 'student',
+      role_description: '学生',
+      permissions: {},
+      is_system_default: true,
+      created_at: '2021-01-01',
+      updated_at: '2021-01-01'
+    }
+  }
+];
+
+export const demoTeacherStudents: UserWithRole[] = [
+  {
+    id: 'demo-1',
+    username: 'student001',
+    email: 'student001@university.edu.cn',
+    user_number: '2021001',
+    full_name: '张小明',
+    role_id: '3',
+    status: 'active',
+    phone: '138****1234',
+    department: '计算机学院',
+    grade: '2021级',
+    class_name: '计算机科学与技术1班',
+    created_at: '2021-09-01',
+    updated_at: '2024-01-01',
+    role: {
+      id: '3',
+      role_name: 'student',
+      role_description: '学生',
+      permissions: {},
+      is_system_default: true,
+      created_at: '2021-01-01',
+      updated_at: '2021-01-01'
+    }
+  },
+  {
+    id: '00000000-0000-0000-0000-000000000102',
+    username: 'student002',
+    email: 'student002@university.edu.cn',
+    user_number: 'ST2021002',
+    full_name: '李小红',
+    role_id: '3',
+    status: 'active',
+    phone: '139****5678',
+    department: '计算机学院',
+    grade: '2021级',
+    class_name: '计算机科学与技术2班',
+    created_at: '2021-09-01',
+    updated_at: '2024-01-01',
+    role: {
+      id: '3',
+      role_name: 'student',
+      role_description: '学生',
+      permissions: {},
+      is_system_default: true,
+      created_at: '2021-01-01',
+      updated_at: '2021-01-01'
+    }
+  }
+];

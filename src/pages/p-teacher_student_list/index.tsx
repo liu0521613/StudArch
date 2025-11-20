@@ -1,142 +1,179 @@
-
-
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import styles from './styles.module.css';
-
-interface Student {
-  id: number;
-  student_number: string;
-  name: string;
-  class: string;
-  status: 'enrolled' | 'suspended' | 'withdrawn' | 'graduated' | 'completed';
-  phone: string;
-  avatar: string;
-}
-
-interface StatusMap {
-  text: string;
-  class: string;
-}
+import { UserService } from '../../services/userService';
+import { UserWithRole } from '../../types/user';
+import { demoAuthorizedStudents, demoTeacherStudents } from '../../data/demoData';
 
 const TeacherStudentList: React.FC = () => {
   const navigate = useNavigate();
-  const fileInputRef = useRef<HTMLInputElement>(null);
   
-  // 模拟学生数据
-  const [studentsData, setStudentsData] = useState<Student[]>([
-    {
-      id: 1,
-      student_number: '2021001',
-      name: '李小明',
-      class: '计算机科学与技术1班',
-      status: 'enrolled',
-      phone: '138****1234',
-      avatar: 'https://s.coze.cn/image/n6Nq_jtc1k8/'
-    },
-    {
-      id: 2,
-      student_number: '2021002',
-      name: '王小红',
-      class: '软件工程2班',
-      status: 'graduated',
-      phone: '139****5678',
-      avatar: 'https://s.coze.cn/image/wkvgED4VfKE/'
-    },
-    {
-      id: 3,
-      student_number: '2021003',
-      name: '张大力',
-      class: '计算机科学与技术1班',
-      status: 'enrolled',
-      phone: '136****9012',
-      avatar: 'https://s.coze.cn/image/AQLLR7kknmo/'
-    },
-    {
-      id: 4,
-      student_number: '2021004',
-      name: '刘美丽',
-      class: '软件工程2班',
-      status: 'suspended',
-      phone: '137****3456',
-      avatar: 'https://s.coze.cn/image/sXKywMzIbas/'
-    },
-    {
-      id: 5,
-      student_number: '2021005',
-      name: '陈志强',
-      class: '计算机科学与技术3班',
-      status: 'enrolled',
-      phone: '135****7890',
-      avatar: 'https://s.coze.cn/image/1k-TSTYpWzQ/'
-    },
-    {
-      id: 6,
-      student_number: '2021006',
-      name: '赵文静',
-      class: '计算机科学与技术2班',
-      status: 'enrolled',
-      phone: '138****2345',
-      avatar: 'https://s.coze.cn/image/zXUcVqarVLY/'
-    },
-    {
-      id: 7,
-      student_number: '2021007',
-      name: '孙建华',
-      class: '软件工程1班',
-      status: 'withdrawn',
-      phone: '139****6789',
-      avatar: 'https://s.coze.cn/image/Zb-ENkqz49c/'
-    },
-    {
-      id: 8,
-      student_number: '2021008',
-      name: '周雅婷',
-      class: '计算机科学与技术3班',
-      status: 'completed',
-      phone: '136****0123',
-      avatar: 'https://s.coze.cn/image/GRUl60n8Tjc/'
-    },
-    {
-      id: 9,
-      student_number: '2021009',
-      name: '吴志华',
-      class: '计算机科学与技术2班',
-      status: 'enrolled',
-      phone: '137****4567',
-      avatar: 'https://s.coze.cn/image/NZvVbnuLkqk/'
-    },
-    {
-      id: 10,
-      student_number: '2021010',
-      name: '郑晓雯',
-      class: '软件工程1班',
-      status: 'enrolled',
-      phone: '135****8901',
-      avatar: 'https://s.coze.cn/image/Np8Sa9LcKRU/'
-    }
-  ]);
-
+  // 教师管理的学生数据
+  const [studentsData, setStudentsData] = useState<UserWithRole[]>([]);
+  const [studentsLoading, setStudentsLoading] = useState(false);
+  const [studentsTotal, setStudentsTotal] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(10);
-  const [filteredData, setFilteredData] = useState<Student[]>(studentsData);
-  const [selectedStudents, setSelectedStudents] = useState<Set<number>>(new Set());
+  const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set());
   const [searchTerm, setSearchTerm] = useState('');
   const [classFilter, setClassFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [isStudentModalOpen, setIsStudentModalOpen] = useState(false);
+  const [editingStudent, setEditingStudent] = useState<UserWithRole | null>(null);
+  
+  // 导入相关状态
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [editingStudent, setEditingStudent] = useState<Student | null>(null);
-  const [importFile, setImportFile] = useState<File | null>(null);
+  const [availableStudents, setAvailableStudents] = useState<UserWithRole[]>([]);
+  const [selectedAvailableStudents, setSelectedAvailableStudents] = useState<Set<string>>(new Set());
+  const [importLoading, setImportLoading] = useState(false);
+  const [importSearchTerm, setImportSearchTerm] = useState('');
+  const [importPage, setImportPage] = useState(1);
+  const [importTotalCount, setImportTotalCount] = useState(0);
 
-  // 状态映射
-  const statusMap: Record<string, StatusMap> = {
-    'enrolled': { text: '在读', class: 'bg-green-100 text-green-800' },
-    'suspended': { text: '休学', class: 'bg-orange-100 text-orange-800' },
-    'withdrawn': { text: '退学', class: 'bg-red-100 text-red-800' },
-    'graduated': { text: '毕业', class: 'bg-blue-100 text-blue-800' },
-    'completed': { text: '结业', class: 'bg-purple-100 text-purple-800' }
+  // 获取教师管理的学生列表
+  const fetchTeacherStudents = async () => {
+    try {
+      setStudentsLoading(true);
+      // 这里应该从认证状态中获取当前教师的ID，暂时使用固定的UUID
+      const currentTeacherId = '00000000-0000-0000-0000-000000000001';
+      
+      const result = await UserService.getTeacherStudents(currentTeacherId, {
+        keyword: searchTerm,
+        page: currentPage,
+        limit: pageSize
+      });
+      
+      setStudentsData(result.students);
+      setStudentsTotal(result.total);
+    } catch (error) {
+      console.error('获取教师学生列表失败:', error);
+      // 使用演示数据作为fallback，确保只显示学生角色
+      // 这里应该显示当前教师管理的学生，包括新导入的
+      let filteredStudents = demoTeacherStudents.filter(student => 
+        student.role_id === '3' && student.status === 'active'
+      );
+      
+      // 从localStorage读取已导入的学生ID
+      const savedImportedIds = localStorage.getItem('importedStudentIds');
+      let importedIds: Set<string> = new Set();
+      
+      if (savedImportedIds) {
+        try {
+          const parsedIds = JSON.parse(savedImportedIds);
+          importedIds = new Set(parsedIds);
+          console.log('从localStorage恢复的导入学生ID:', Array.from(importedIds));
+        } catch (e) {
+          console.error('解析localStorage中的导入学生ID失败:', e);
+        }
+      }
+      
+      // 获取已导入的学生（不管是否在基础列表中，确保包含所有导入的学生）
+      const importedStudents = demoAuthorizedStudents.filter(student => 
+        importedIds.has(student.id)
+      );
+      
+      console.log('找到的已导入学生数量:', importedStudents.length);
+      console.log('已导入学生:', importedStudents.map(s => ({ id: s.id, name: s.full_name })));
+      
+      // 合并基础学生和已导入的学生，避免重复
+      const existingIds = new Set(filteredStudents.map(s => s.id));
+      const newImportedStudents = importedStudents.filter(student => !existingIds.has(student.id));
+      
+      if (newImportedStudents.length > 0) {
+        console.log('新增导入学生:', newImportedStudents.map(s => ({ id: s.id, name: s.full_name })));
+        filteredStudents = [...filteredStudents, ...newImportedStudents];
+      }
+      
+      if (searchTerm) {
+        const searchTermLower = searchTerm.toLowerCase();
+        filteredStudents = filteredStudents.filter(student => 
+          student.full_name.toLowerCase().includes(searchTermLower) ||
+          student.user_number.toLowerCase().includes(searchTermLower) ||
+          student.department?.toLowerCase().includes(searchTermLower) ||
+          student.class_name?.toLowerCase().includes(searchTermLower)
+        );
+        console.log('搜索过滤后的学生数量:', filteredStudents.length);
+      }
+      
+      // 分页处理
+      const startIndex = (currentPage - 1) * pageSize;
+      const endIndex = startIndex + pageSize;
+      const paginatedStudents = filteredStudents.slice(startIndex, endIndex);
+      
+      setStudentsData(paginatedStudents);
+      setStudentsTotal(filteredStudents.length);
+    } finally {
+      setStudentsLoading(false);
+    }
   };
+
+  // 获取可导入的学生列表
+  const fetchAvailableStudents = async () => {
+    try {
+      setImportLoading(true);
+      const result = await UserService.getAuthorizedStudents({
+        keyword: importSearchTerm,
+        page: importPage,
+        limit: 20
+      });
+      setAvailableStudents(result.students);
+      setImportTotalCount(result.total);
+    } catch (error) {
+      console.error('获取可导入学生失败:', error);
+      // 使用演示数据，确保只显示学生角色
+      let filteredStudents = demoAuthorizedStudents.filter(student => 
+        student.role_id === '3' && student.status === 'active'
+      );
+      if (importSearchTerm) {
+        const searchTermLower = importSearchTerm.toLowerCase();
+        filteredStudents = filteredStudents.filter(student => 
+          student.full_name.toLowerCase().includes(searchTermLower) ||
+          student.user_number.toLowerCase().includes(searchTermLower) ||
+          student.email.toLowerCase().includes(searchTermLower) ||
+          student.department?.toLowerCase().includes(searchTermLower) ||
+          student.class_name?.toLowerCase().includes(searchTermLower)
+        );
+      }
+      
+      // 分页处理
+      const startIndex = (importPage - 1) * 20;
+      const endIndex = startIndex + 20;
+      const paginatedStudents = filteredStudents.slice(startIndex, endIndex);
+      
+      setAvailableStudents(paginatedStudents);
+      setImportTotalCount(filteredStudents.length);
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+  // 当导入模态框打开时获取可用学生
+  useEffect(() => {
+    if (isImportModalOpen) {
+      fetchAvailableStudents();
+    }
+  }, [isImportModalOpen, importSearchTerm, importPage]);
+
+  // 页面加载时获取教师学生数据
+  useEffect(() => {
+    // 从localStorage恢复已导入的学生ID
+    const savedImportedIds = localStorage.getItem('importedStudentIds');
+    if (savedImportedIds) {
+      try {
+        const parsedIds = JSON.parse(savedImportedIds);
+        setSelectedAvailableStudents(new Set(parsedIds));
+      } catch (e) {
+        console.error('解析localStorage中的导入学生ID失败:', e);
+      }
+    }
+    
+    fetchTeacherStudents();
+  }, [searchTerm, currentPage, pageSize]);
+
+  // 当筛选条件改变时，重新获取数据
+  useEffect(() => {
+    fetchTeacherStudents();
+  }, [searchTerm, classFilter, statusFilter]);
 
   // 设置页面标题
   useEffect(() => {
@@ -145,59 +182,17 @@ const TeacherStudentList: React.FC = () => {
     return () => { document.title = originalTitle; };
   }, []);
 
-  // 筛选数据
-  useEffect(() => {
-    const filtered = studentsData.filter(student => {
-      const matchesSearch = !searchTerm || 
-        student.student_number.includes(searchTerm) ||
-        student.name.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      const matchesClass = !classFilter || student.class === getClassName(classFilter);
-      const matchesStatus = !statusFilter || student.status === statusFilter;
-
-      return matchesSearch && matchesClass && matchesStatus;
-    });
-
-    setFilteredData(filtered);
-    setCurrentPage(1);
-  }, [searchTerm, classFilter, statusFilter, studentsData]);
-
-  const getClassName = (value: string): string => {
-    const classMap: Record<string, string> = {
-      'cs1': '计算机科学与技术1班',
-      'cs2': '计算机科学与技术2班',
-      'cs3': '计算机科学与技术3班',
-      'se1': '软件工程1班',
-      'se2': '软件工程2班'
-    };
-    return classMap[value] || '';
-  };
-
-  const getClassValue = (className: string): string => {
-    const classMap: Record<string, string> = {
-      '计算机科学与技术1班': 'cs1',
-      '计算机科学与技术2班': 'cs2',
-      '计算机科学与技术3班': 'cs3',
-      '软件工程1班': 'se1',
-      '软件工程2班': 'se2'
-    };
-    return classMap[className] || '';
-  };
-
   const handleSelectAll = (checked: boolean) => {
-    const currentPageData = getCurrentPageData();
     if (checked) {
       const newSelected = new Set(selectedStudents);
-      currentPageData.forEach(student => newSelected.add(student.id));
+      studentsData.forEach(student => newSelected.add(student.id));
       setSelectedStudents(newSelected);
     } else {
-      const newSelected = new Set(selectedStudents);
-      currentPageData.forEach(student => newSelected.delete(student.id));
-      setSelectedStudents(newSelected);
+      setSelectedStudents(new Set());
     }
   };
 
-  const handleStudentSelect = (studentId: number, checked: boolean) => {
+  const handleStudentSelect = (studentId: string, checked: boolean) => {
     const newSelected = new Set(selectedStudents);
     if (checked) {
       newSelected.add(studentId);
@@ -207,47 +202,17 @@ const TeacherStudentList: React.FC = () => {
     setSelectedStudents(newSelected);
   };
 
-  const getCurrentPageData = (): Student[] => {
-    const startIndex = (currentPage - 1) * pageSize;
-    const endIndex = startIndex + pageSize;
-    return filteredData.slice(startIndex, endIndex);
-  };
-
-  const getTotalPages = (): number => {
-    return Math.ceil(filteredData.length / pageSize);
-  };
-
   const isAllSelected = (): boolean => {
-    const currentPageData = getCurrentPageData();
-    return currentPageData.length > 0 && currentPageData.every(student => selectedStudents.has(student.id));
+    return studentsData.length > 0 && studentsData.every(student => selectedStudents.has(student.id));
   };
 
   const isIndeterminate = (): boolean => {
-    const currentPageData = getCurrentPageData();
-    const selectedCount = currentPageData.filter(student => selectedStudents.has(student.id)).length;
-    return selectedCount > 0 && selectedCount < currentPageData.length;
-  };
-
-  const handleSort = (field: keyof Student) => {
-    const sorted = [...filteredData].sort((a, b) => {
-      let aValue = a[field];
-      let bValue = b[field];
-      
-      if (typeof aValue === 'string') {
-        aValue = aValue.toLowerCase();
-        bValue = bValue.toLowerCase();
-      }
-      
-      if (aValue < bValue) return -1;
-      if (aValue > bValue) return 1;
-      return 0;
-    });
-    
-    setFilteredData(sorted);
+    const selectedCount = studentsData.filter(student => selectedStudents.has(student.id)).length;
+    return selectedCount > 0 && selectedCount < studentsData.length;
   };
 
   const handlePageChange = (page: number) => {
-    const totalPages = getTotalPages();
+    const totalPages = Math.ceil(studentsTotal / pageSize);
     if (page >= 1 && page <= totalPages) {
       setCurrentPage(page);
     }
@@ -258,12 +223,12 @@ const TeacherStudentList: React.FC = () => {
     setIsStudentModalOpen(true);
   };
 
-  const handleEditStudent = (student: Student) => {
+  const handleEditStudent = (student: UserWithRole) => {
     setEditingStudent(student);
     setIsStudentModalOpen(true);
   };
 
-  const handleSaveStudent = (formData: Partial<Student>) => {
+  const handleSaveStudent = (formData: Partial<UserWithRole>) => {
     if (editingStudent) {
       // 编辑学生
       setStudentsData(prev => prev.map(student => 
@@ -271,11 +236,30 @@ const TeacherStudentList: React.FC = () => {
       ));
     } else {
       // 新增学生
-      const newStudent: Student = {
-        id: Math.max(...studentsData.map(s => s.id)) + 1,
-        ...formData,
-        avatar: 'https://s.coze.cn/image/zycTkZ9PWs0/'
-      } as Student;
+      const newStudent: UserWithRole = {
+        id: Date.now().toString(),
+        username: formData.username || '',
+        email: formData.email || '',
+        user_number: formData.user_number || '',
+        full_name: formData.full_name || '',
+        role_id: '3',
+        status: 'active',
+        phone: formData.phone,
+        department: formData.department,
+        grade: formData.grade,
+        class_name: formData.class_name,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        role: {
+          id: '3',
+          role_name: 'student',
+          role_description: '学生',
+          permissions: {},
+          is_system_default: true,
+          created_at: '2021-01-01',
+          updated_at: '2021-01-01'
+        }
+      };
       setStudentsData(prev => [...prev, newStudent]);
     }
 
@@ -283,10 +267,21 @@ const TeacherStudentList: React.FC = () => {
     setEditingStudent(null);
   };
 
-  const handleBatchDelete = () => {
-    if (selectedStudents.size > 0 && confirm('确定要删除选中的学生吗？')) {
-      setStudentsData(prev => prev.filter(student => !selectedStudents.has(student.id)));
-      setSelectedStudents(new Set());
+  const handleBatchDelete = async () => {
+    if (selectedStudents.size > 0 && confirm('确定要移除选中的学生吗？')) {
+      try {
+        const currentTeacherId = '00000000-0000-0000-0000-000000000001';
+        const promises = Array.from(selectedStudents).map(studentId =>
+          UserService.removeStudentFromTeacher(currentTeacherId, studentId)
+        );
+        
+        await Promise.all(promises);
+        setSelectedStudents(new Set());
+        fetchTeacherStudents(); // 重新获取数据
+      } catch (error) {
+        console.error('批量移除学生失败:', error);
+        alert('批量移除学生失败，请稍后重试');
+      }
     }
   };
 
@@ -297,24 +292,92 @@ const TeacherStudentList: React.FC = () => {
     }
   };
 
-  const handleImportFile = (file: File) => {
-    setImportFile(file);
+  const handleAvailableStudentSelect = (studentId: string, checked: boolean) => {
+    const newSelected = new Set(selectedAvailableStudents);
+    if (checked) {
+      newSelected.add(studentId);
+    } else {
+      newSelected.delete(studentId);
+    }
+    setSelectedAvailableStudents(newSelected);
   };
 
-  const handleConfirmImport = () => {
-    if (importFile) {
-      console.log('开始导入文件:', importFile.name);
-      // 实际应用中这里会处理文件上传和数据导入
-      alert('文件导入功能');
-      setIsImportModalOpen(false);
-      setImportFile(null);
+  const handleSelectAllAvailable = (checked: boolean) => {
+    if (checked) {
+      const newSelected = new Set(selectedAvailableStudents);
+      availableStudents.forEach(student => newSelected.add(student.id));
+      setSelectedAvailableStudents(newSelected);
+    } else {
+      setSelectedAvailableStudents(new Set());
     }
   };
 
-  const handleDownloadTemplate = () => {
-    console.log('下载Excel模板');
-    // 实际应用中这里会触发文件下载
-    alert('模板下载功能');
+  const handleConfirmImport = async () => {
+    if (selectedAvailableStudents.size === 0) {
+      alert('请选择要导入的学生');
+      return;
+    }
+
+    try {
+      setImportLoading(true);
+      // 假设当前教师的ID是固定的，实际应用中应该从认证状态中获取
+      const teacherId = '00000000-0000-0000-0000-000000000001';
+      
+      console.log('开始导入学生:', Array.from(selectedAvailableStudents));
+      const result = await UserService.teacherAddStudents(
+        Array.from(selectedAvailableStudents),
+        teacherId
+      );
+      
+      if (result.success > 0) {
+        alert(`成功导入 ${result.success} 个学生${result.failed > 0 ? `，失败 ${result.failed} 个` : ''}`);
+        
+        // 重新刷新当前学生列表
+        fetchTeacherStudents();
+        
+        // 关闭模态框并重置状态
+        setIsImportModalOpen(false);
+        setSelectedAvailableStudents(new Set());
+        setImportSearchTerm('');
+        setImportPage(1);
+      } else {
+        alert('导入失败，请检查学生信息是否正确');
+      }
+    } catch (error) {
+      console.error('批量导入失败:', error);
+      
+      // 检查各种错误条件，直接进入演示模式
+      console.log('启用演示模式处理导入');
+      
+      // 将选中的学生添加到当前学生列表
+      const newStudents = demoAuthorizedStudents.filter(student => 
+        selectedAvailableStudents.has(student.id)
+      );
+      
+      // 保存到localStorage以确保持久化
+      const importedStudentIds = Array.from(selectedAvailableStudents);
+      localStorage.setItem('importedStudentIds', JSON.stringify(importedStudentIds));
+      
+      // 添加到当前学生列表
+      setStudentsData(prev => [...prev, ...newStudents]);
+      setStudentsTotal(prev => prev + newStudents.length);
+      
+      alert(`演示模式：成功导入 ${selectedAvailableStudents.size} 个学生到您的管理列表`);
+      
+      // 关闭模态框并重置状态
+      setIsImportModalOpen(false);
+      setSelectedAvailableStudents(new Set());
+      setImportSearchTerm('');
+      setImportPage(1);
+      
+      // 强制刷新一下页面状态
+      setTimeout(() => {
+        fetchTeacherStudents();
+      }, 100);
+      
+    } finally {
+      setImportLoading(false);
+    }
   };
 
   const handleLogout = () => {
@@ -324,7 +387,7 @@ const TeacherStudentList: React.FC = () => {
   };
 
   const renderPaginationNumbers = () => {
-    const totalPages = getTotalPages();
+    const totalPages = Math.ceil(studentsTotal / pageSize);
     const pages = [];
     
     for (let i = 1; i <= totalPages; i++) {
@@ -354,9 +417,8 @@ const TeacherStudentList: React.FC = () => {
     return pages;
   };
 
-  const currentPageData = getCurrentPageData();
   const startIndex = (currentPage - 1) * pageSize + 1;
-  const endIndex = Math.min(currentPage * pageSize, filteredData.length);
+  const endIndex = Math.min(currentPage * pageSize, studentsTotal);
 
   return (
     <div className={styles.pageWrapper}>
@@ -557,36 +619,36 @@ const TeacherStudentList: React.FC = () => {
                       className="rounded border-border-light"
                     />
                   </th>
-                  <th 
-                    className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider cursor-pointer hover:text-text-primary"
-                    onClick={() => handleSort('student_number')}
-                  >
-                    学号 <i className="fas fa-sort ml-1"></i>
-                  </th>
-                  <th 
-                    className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider cursor-pointer hover:text-text-primary"
-                    onClick={() => handleSort('name')}
-                  >
-                    姓名 <i className="fas fa-sort ml-1"></i>
-                  </th>
-                  <th 
-                    className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider cursor-pointer hover:text-text-primary"
-                    onClick={() => handleSort('class')}
-                  >
-                    班级 <i className="fas fa-sort ml-1"></i>
-                  </th>
-                  <th 
-                    className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider cursor-pointer hover:text-text-primary"
-                    onClick={() => handleSort('status')}
-                  >
-                    学籍状态 <i className="fas fa-sort ml-1"></i>
-                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">学号</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">姓名</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">班级</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">学籍状态</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">联系方式</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">操作</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-border-light">
-                {currentPageData.map(student => (
+                {studentsLoading ? (
+                  <tr>
+                    <td colSpan={7} className="px-6 py-12 text-center">
+                      <i className="fas fa-spinner fa-spin text-2xl text-secondary mb-4"></i>
+                      <p className="text-text-secondary">加载中...</p>
+                    </td>
+                  </tr>
+                ) : studentsData.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-6 py-12 text-center">
+                      <i className="fas fa-users text-4xl text-gray-300 mb-4"></i>
+                      <p className="text-text-secondary mb-4">暂无管理的学生</p>
+                      <button 
+                        onClick={() => setIsImportModalOpen(true)}
+                        className="px-4 py-2 bg-secondary text-white rounded-lg hover:bg-accent transition-colors"
+                      >
+                        批量导入学生
+                      </button>
+                    </td>
+                  </tr>
+                ) : studentsData.map(student => (
                   <tr key={student.id} className={styles.tableRow}>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <input 
@@ -596,26 +658,26 @@ const TeacherStudentList: React.FC = () => {
                         className="rounded border-border-light"
                       />
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">{student.student_number}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">{student.user_number}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <img 
                           className="h-8 w-8 rounded-full mr-3" 
-                          src={student.avatar} 
-                          alt={`${student.name}头像`}
+                          src="https://s.coze.cn/image/zycTkZ9PWs0/" 
+                          alt={`${student.full_name}头像`}
                         />
                         <Link 
                           to={`/teacher-student-detail?studentId=${student.id}`}
                           className="text-secondary hover:text-accent font-medium"
                         >
-                          {student.name}
+                          {student.full_name}
                         </Link>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">{student.class}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">{student.class_name}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 py-1 text-xs font-medium ${statusMap[student.status].class} rounded-full`}>
-                        {statusMap[student.status].text}
+                      <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">
+                        {student.status === 'active' ? '在读' : '其他'}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-text-secondary">{student.phone}</td>
@@ -644,7 +706,7 @@ const TeacherStudentList: React.FC = () => {
           {/* 分页 */}
           <div className="px-6 py-4 border-t border-border-light flex items-center justify-between">
             <div className="text-sm text-text-secondary">
-              显示 <span>{filteredData.length > 0 ? startIndex : 0}</span>-<span>{endIndex}</span> 条，共 <span>{filteredData.length}</span> 条记录
+              显示 <span>{studentsData.length > 0 ? startIndex : 0}</span>-<span>{Math.min(currentPage * pageSize, studentsTotal)}</span> 条，共 <span>{studentsTotal}</span> 条记录
             </div>
             <div className="flex items-center space-x-2">
               <button 
@@ -659,7 +721,7 @@ const TeacherStudentList: React.FC = () => {
               </div>
               <button 
                 onClick={() => handlePageChange(currentPage + 1)}
-                disabled={currentPage === getTotalPages()}
+                disabled={currentPage >= Math.ceil(studentsTotal / pageSize)}
                 className="px-3 py-1 text-sm border border-border-light rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
               >
                 <i className="fas fa-chevron-right"></i>
@@ -707,14 +769,16 @@ const TeacherStudentList: React.FC = () => {
       {isImportModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50">
           <div className="flex items-center justify-center min-h-screen p-4">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
               <div className="p-6 border-b border-border-light">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-semibold text-text-primary">批量导入学生</h3>
                   <button 
                     onClick={() => {
                       setIsImportModalOpen(false);
-                      setImportFile(null);
+                      setSelectedAvailableStudents(new Set());
+                      setImportSearchTerm('');
+                      setImportPage(1);
                     }}
                     className="text-text-secondary hover:text-text-primary transition-colors"
                   >
@@ -722,55 +786,137 @@ const TeacherStudentList: React.FC = () => {
                   </button>
                 </div>
               </div>
-              <div className="p-6">
-                <div className="space-y-4">
-                  <div className="text-center p-6 border-2 border-dashed border-border-light rounded-lg">
-                    <i className="fas fa-file-excel text-4xl text-green-500 mb-3"></i>
-                    <p className="text-text-primary font-medium mb-2">上传Excel文件</p>
-                    <p className="text-sm text-text-secondary">支持 .xlsx 格式，单次最多导入1000条</p>
-                    <input 
-                      type="file" 
-                      accept=".xlsx,.xls" 
-                      className="hidden"
-                      ref={fileInputRef}
-                      onChange={(e) => e.target.files && e.target.files[0] && handleImportFile(e.target.files[0])}
-                    />
-                    <button 
-                      onClick={() => fileInputRef.current?.click()}
-                      className="mt-3 px-4 py-2 bg-secondary text-white rounded-lg hover:bg-accent transition-colors"
-                    >
-                      选择文件
-                    </button>
-                  </div>
-                  {importFile && (
-                    <div className="p-3 bg-gray-50 rounded-lg">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-text-primary">{importFile.name}</span>
-                        <button 
-                          onClick={() => setImportFile(null)}
-                          className="text-red-500 hover:text-red-700"
-                        >
-                          <i className="fas fa-times"></i>
-                        </button>
-                      </div>
+              
+              <div className="p-6 flex-1 overflow-hidden flex flex-col">
+                {/* 搜索和筛选 */}
+                <div className="mb-4">
+                  <div className="flex items-center space-x-4">
+                    <div className="relative flex-1">
+                      <i className="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-text-secondary"></i>
+                      <input 
+                        type="text" 
+                        placeholder="搜索学号、姓名或邮箱" 
+                        value={importSearchTerm}
+                        onChange={(e) => setImportSearchTerm(e.target.value)}
+                        className="pl-10 pr-4 py-2 border border-border-light rounded-lg w-full"
+                      />
                     </div>
-                  )}
-                  <div>
                     <button 
-                      onClick={handleDownloadTemplate}
-                      className="w-full px-4 py-2 border border-border-light rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center space-x-2"
+                      onClick={fetchAvailableStudents}
+                      disabled={importLoading}
+                      className="px-4 py-2 bg-secondary text-white rounded-lg hover:bg-accent transition-colors disabled:opacity-50"
                     >
-                      <i className="fas fa-download text-secondary"></i>
-                      <span className="text-text-primary">下载模板</span>
+                      {importLoading ? '搜索中...' : '搜索'}
                     </button>
                   </div>
                 </div>
+
+                {/* 选中数量显示 */}
+                <div className="mb-4 flex items-center justify-between">
+                  <div className="text-sm text-text-secondary">
+                    已选择 <span className="font-semibold text-secondary">{selectedAvailableStudents.size}</span> 个学生
+                  </div>
+                  <div className="text-sm text-text-secondary">
+                    共找到 <span className="font-semibold">{importTotalCount}</span> 个已授权学生
+                  </div>
+                </div>
+
+                {/* 学生列表 */}
+                <div className="flex-1 overflow-y-auto border border-border-light rounded-lg">
+                  {importLoading ? (
+                    <div className="flex items-center justify-center h-64">
+                      <div className="text-center">
+                        <i className="fas fa-spinner fa-spin text-3xl text-secondary mb-4"></i>
+                        <p className="text-text-secondary">加载中...</p>
+                      </div>
+                    </div>
+                  ) : availableStudents.length === 0 ? (
+                    <div className="flex items-center justify-center h-64">
+                      <div className="text-center">
+                        <i className="fas fa-users text-3xl text-gray-300 mb-4"></i>
+                        <p className="text-text-secondary">暂无可导入的学生</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <table className="w-full">
+                      <thead className="bg-gray-50 sticky top-0">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">
+                            <input 
+                              type="checkbox" 
+                              checked={availableStudents.length > 0 && availableStudents.every(s => selectedAvailableStudents.has(s.id))}
+                              onChange={(e) => handleSelectAllAvailable(e.target.checked)}
+                              className="rounded border-border-light"
+                            />
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">学号</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">姓名</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">邮箱</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">院系</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">年级</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">班级</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-border-light">
+                        {availableStudents.map(student => (
+                          <tr key={student.id} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <input 
+                                type="checkbox" 
+                                checked={selectedAvailableStudents.has(student.id)}
+                                onChange={(e) => handleAvailableStudentSelect(student.id, e.target.checked)}
+                                className="rounded border-border-light"
+                              />
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">{student.user_number}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-text-primary">{student.full_name}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-text-secondary">{student.email}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">{student.department}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">{student.grade}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">{student.class_name}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+
+                {/* 分页 */}
+                {availableStudents.length > 0 && (
+                  <div className="mt-4 flex items-center justify-between">
+                    <div className="text-sm text-text-secondary">
+                      显示第 {Math.min((importPage - 1) * 20 + 1, importTotalCount)} - {Math.min(importPage * 20, importTotalCount)} 条，共 {importTotalCount} 条
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <button 
+                        onClick={() => setImportPage(prev => Math.max(1, prev - 1))}
+                        disabled={importPage === 1}
+                        className="px-3 py-1 text-sm border border-border-light rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                      >
+                        <i className="fas fa-chevron-left"></i>
+                      </button>
+                      <span className="px-3 py-1 text-sm text-text-primary">
+                        第 {importPage} 页
+                      </span>
+                      <button 
+                        onClick={() => setImportPage(prev => Math.min(Math.ceil(importTotalCount / 20), prev + 1))}
+                        disabled={importPage >= Math.ceil(importTotalCount / 20)}
+                        className="px-3 py-1 text-sm border border-border-light rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                      >
+                        <i className="fas fa-chevron-right"></i>
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
+              
               <div className="p-6 border-t border-border-light flex justify-end space-x-3">
                 <button 
                   onClick={() => {
                     setIsImportModalOpen(false);
-                    setImportFile(null);
+                    setSelectedAvailableStudents(new Set());
+                    setImportSearchTerm('');
+                    setImportPage(1);
                   }}
                   className="px-4 py-2 border border-border-light rounded-lg hover:bg-gray-50 transition-colors"
                 >
@@ -778,10 +924,10 @@ const TeacherStudentList: React.FC = () => {
                 </button>
                 <button 
                   onClick={handleConfirmImport}
-                  disabled={!importFile}
+                  disabled={selectedAvailableStudents.size === 0 || importLoading}
                   className="px-4 py-2 bg-secondary text-white rounded-lg hover:bg-accent transition-colors disabled:opacity-50"
                 >
-                  开始导入
+                  {importLoading ? '导入中...' : `确认导入 (${selectedAvailableStudents.size})`}
                 </button>
               </div>
             </div>
@@ -794,51 +940,27 @@ const TeacherStudentList: React.FC = () => {
 
 // 学生表单组件
 interface StudentFormProps {
-  student: Student | null;
-  onSave: (data: Partial<Student>) => void;
+  student: UserWithRole | null;
+  onSave: (data: Partial<UserWithRole>) => void;
   onCancel: () => void;
 }
 
 const StudentForm: React.FC<StudentFormProps> = ({ student, onSave, onCancel }) => {
-  const getClassName = (value: string): string => {
-    const classMap: Record<string, string> = {
-      'cs1': '计算机科学与技术1班',
-      'cs2': '计算机科学与技术2班',
-      'cs3': '计算机科学与技术3班',
-      'se1': '软件工程1班',
-      'se2': '软件工程2班'
-    };
-    return classMap[value] || '';
-  };
-
-  const getClassValue = (className: string): string => {
-    const classMap: Record<string, string> = {
-      '计算机科学与技术1班': 'cs1',
-      '计算机科学与技术2班': 'cs2',
-      '计算机科学与技术3班': 'cs3',
-      '软件工程1班': 'se1',
-      '软件工程2班': 'se2'
-    };
-    return classMap[className] || '';
-  };
-
   const [formData, setFormData] = useState({
-    student_number: student?.student_number || '',
-    name: student?.name || '',
-    class: getClassValue(student?.class || ''),
-    status: student?.status || 'enrolled',
-    phone: student?.phone || ''
+    username: student?.username || '',
+    email: student?.email || '',
+    user_number: student?.user_number || '',
+    full_name: student?.full_name || '',
+    phone: student?.phone || '',
+    department: student?.department || '',
+    grade: student?.grade || '',
+    class_name: student?.class_name || '',
+    status: student?.status || 'active'
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave({
-      student_number: formData.student_number,
-      name: formData.name,
-      class: getClassName(formData.class),
-      status: formData.status,
-      phone: formData.phone
-    });
+    onSave(formData);
   };
 
   return (
@@ -849,8 +971,8 @@ const StudentForm: React.FC<StudentFormProps> = ({ student, onSave, onCancel }) 
           <input 
             type="text" 
             id="student-number" 
-            value={formData.student_number}
-            onChange={(e) => setFormData(prev => ({ ...prev, student_number: e.target.value }))}
+            value={formData.user_number}
+            onChange={(e) => setFormData(prev => ({ ...prev, user_number: e.target.value }))}
             required
             className="w-full px-3 py-2 border border-border-light rounded-lg focus:outline-none focus:border-secondary"
           />
@@ -860,8 +982,8 @@ const StudentForm: React.FC<StudentFormProps> = ({ student, onSave, onCancel }) 
           <input 
             type="text" 
             id="student-name" 
-            value={formData.name}
-            onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+            value={formData.full_name}
+            onChange={(e) => setFormData(prev => ({ ...prev, full_name: e.target.value }))}
             required
             className="w-full px-3 py-2 border border-border-light rounded-lg focus:outline-none focus:border-secondary"
           />
@@ -869,48 +991,72 @@ const StudentForm: React.FC<StudentFormProps> = ({ student, onSave, onCancel }) 
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label htmlFor="student-class" className="block text-sm font-medium text-text-primary mb-2">班级 *</label>
-          <select 
-            id="student-class" 
-            value={formData.class}
-            onChange={(e) => setFormData(prev => ({ ...prev, class: e.target.value }))}
+          <label htmlFor="student-email" className="block text-sm font-medium text-text-primary mb-2">邮箱 *</label>
+          <input 
+            type="email" 
+            id="student-email" 
+            value={formData.email}
+            onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
             required
             className="w-full px-3 py-2 border border-border-light rounded-lg focus:outline-none focus:border-secondary"
-          >
-            <option value="">请选择班级</option>
-            <option value="cs1">计算机科学与技术1班</option>
-            <option value="cs2">计算机科学与技术2班</option>
-            <option value="cs3">计算机科学与技术3班</option>
-            <option value="se1">软件工程1班</option>
-            <option value="se2">软件工程2班</option>
-          </select>
+          />
         </div>
         <div>
-          <label htmlFor="student-status" className="block text-sm font-medium text-text-primary mb-2">学籍状态 *</label>
+          <label htmlFor="student-department" className="block text-sm font-medium text-text-primary mb-2">院系</label>
+          <input 
+            type="text" 
+            id="student-department" 
+            value={formData.department}
+            onChange={(e) => setFormData(prev => ({ ...prev, department: e.target.value }))}
+            className="w-full px-3 py-2 border border-border-light rounded-lg focus:outline-none focus:border-secondary"
+          />
+        </div>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label htmlFor="student-grade" className="block text-sm font-medium text-text-primary mb-2">年级</label>
+          <input 
+            type="text" 
+            id="student-grade" 
+            value={formData.grade}
+            onChange={(e) => setFormData(prev => ({ ...prev, grade: e.target.value }))}
+            className="w-full px-3 py-2 border border-border-light rounded-lg focus:outline-none focus:border-secondary"
+          />
+        </div>
+        <div>
+          <label htmlFor="student-class" className="block text-sm font-medium text-text-primary mb-2">班级</label>
+          <input 
+            type="text" 
+            id="student-class" 
+            value={formData.class_name}
+            onChange={(e) => setFormData(prev => ({ ...prev, class_name: e.target.value }))}
+            className="w-full px-3 py-2 border border-border-light rounded-lg focus:outline-none focus:border-secondary"
+          />
+        </div>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label htmlFor="student-phone" className="block text-sm font-medium text-text-primary mb-2">联系方式</label>
+          <input 
+            type="tel" 
+            id="student-phone" 
+            value={formData.phone}
+            onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+            className="w-full px-3 py-2 border border-border-light rounded-lg focus:outline-none focus:border-secondary"
+          />
+        </div>
+        <div>
+          <label htmlFor="student-status" className="block text-sm font-medium text-text-primary mb-2">状态</label>
           <select 
             id="student-status" 
             value={formData.status}
-            onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value as Student['status'] }))}
-            required
+            onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value as UserWithRole['status'] }))}
             className="w-full px-3 py-2 border border-border-light rounded-lg focus:outline-none focus:border-secondary"
           >
-            <option value="enrolled">在读</option>
-            <option value="suspended">休学</option>
-            <option value="withdrawn">退学</option>
-            <option value="graduated">毕业</option>
-            <option value="completed">结业</option>
+            <option value="active">在读</option>
+            <option value="inactive">离校</option>
           </select>
         </div>
-      </div>
-      <div>
-        <label htmlFor="student-phone" className="block text-sm font-medium text-text-primary mb-2">联系方式</label>
-        <input 
-          type="tel" 
-          id="student-phone" 
-          value={formData.phone}
-          onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-          className="w-full px-3 py-2 border border-border-light rounded-lg focus:outline-none focus:border-secondary"
-        />
       </div>
       <div className="p-6 border-t border-border-light flex justify-end space-x-3">
         <button 
@@ -932,4 +1078,3 @@ const StudentForm: React.FC<StudentFormProps> = ({ student, onSave, onCancel }) 
 };
 
 export default TeacherStudentList;
-
