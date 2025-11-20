@@ -20,6 +20,7 @@ const TeacherReportPage: React.FC = () => {
 
 
   const graduationDistributionChartRef = useRef<any>(null);
+  const courseGradesChartRef = useRef<any>(null);
 
   const destinationTypeChartRef = useRef<any>(null);
   const salaryDistributionChartRef = useRef<any>(null);
@@ -56,6 +57,10 @@ const TeacherReportPage: React.FC = () => {
       if (graduationDistributionChartRef.current) {
         graduationDistributionChartRef.current.destroy();
         graduationDistributionChartRef.current = null;
+      }
+      if (courseGradesChartRef.current) {
+        courseGradesChartRef.current.destroy();
+        courseGradesChartRef.current = null;
       }
 
       if (destinationTypeChartRef.current) {
@@ -117,6 +122,7 @@ const TeacherReportPage: React.FC = () => {
         }
       });
     }
+
 
 
 
@@ -493,21 +499,7 @@ const TeacherReportPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className={`bg-white rounded-xl shadow-card p-6 transition-all duration-300 ${styles.cardHover}`}>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-text-secondary text-sm mb-1">平均绩点</p>
-                    <p className="text-3xl font-bold text-text-primary">3.24</p>
-                    <p className="text-green-600 text-sm mt-1">
-                      <i className="fas fa-arrow-up mr-1"></i>
-                      较上学期 +0.12
-                    </p>
-                  </div>
-                  <div className="w-12 h-12 bg-gradient-to-br from-green-400 to-green-600 rounded-lg flex items-center justify-center">
-                    <i className="fas fa-chart-line text-white text-xl"></i>
-                  </div>
-                </div>
-              </div>
+
 
               <div className={`bg-white rounded-xl shadow-card p-6 transition-all duration-300 ${styles.cardHover}`}>
                 <div className="flex items-center justify-between">
@@ -572,7 +564,7 @@ const TeacherReportPage: React.FC = () => {
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">班级</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">学生数</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">平均绩点</th>
+
                       <th className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">就业率</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">获奖率</th>
                     </tr>
@@ -581,21 +573,21 @@ const TeacherReportPage: React.FC = () => {
                     <tr className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">计算机科学与技术1班</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">42</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">3.31</td>
+
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">88%</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">35%</td>
                     </tr>
                     <tr className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">计算机科学与技术2班</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">38</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">3.18</td>
+
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">82%</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">30%</td>
                     </tr>
                     <tr className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">计算机科学与技术3班</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">46</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">3.26</td>
+
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">86%</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">31%</td>
                     </tr>
@@ -607,6 +599,57 @@ const TeacherReportPage: React.FC = () => {
         )}
 
 
+
+            </div>
+
+            {/* 成绩排名表格 */}
+            <div className="bg-white rounded-xl shadow-card overflow-hidden">
+              <div className="px-6 py-4 border-b border-border-light">
+                <h3 className="font-medium text-text-primary">成绩排名</h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">排名</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">学号</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">姓名</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">班级</th>
+
+                      <th className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">平均分</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-border-light">
+                    <tr className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary font-medium">1</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">2021001</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">李小明</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">计算机科学与技术1班</td>
+
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">92.5</td>
+                    </tr>
+                    <tr className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary font-medium">2</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">2021002</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">王小红</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">软件工程2班</td>
+
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">91.2</td>
+                    </tr>
+                    <tr className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary font-medium">3</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">2021003</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">张大力</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">计算机科学与技术1班</td>
+
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">90.1</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* 毕业去向内容 */}
         {activeTab === 'graduation' && (
