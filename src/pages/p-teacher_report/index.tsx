@@ -598,59 +598,6 @@ const TeacherReportPage: React.FC = () => {
           </section>
         )}
 
-
-
-            </div>
-
-            {/* 成绩排名表格 */}
-            <div className="bg-white rounded-xl shadow-card overflow-hidden">
-              <div className="px-6 py-4 border-b border-border-light">
-                <h3 className="font-medium text-text-primary">成绩排名</h3>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">排名</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">学号</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">姓名</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">班级</th>
-
-                      <th className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">平均分</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-border-light">
-                    <tr className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary font-medium">1</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">2021001</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">李小明</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">计算机科学与技术1班</td>
-
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">92.5</td>
-                    </tr>
-                    <tr className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary font-medium">2</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">2021002</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">王小红</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">软件工程2班</td>
-
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">91.2</td>
-                    </tr>
-                    <tr className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary font-medium">3</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">2021003</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">张大力</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">计算机科学与技术1班</td>
-
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">90.1</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </section>
-        )}
-
         {/* 毕业去向内容 */}
         {activeTab === 'graduation' && (
           <section className="mb-8">

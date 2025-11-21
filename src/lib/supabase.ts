@@ -110,7 +110,54 @@ if (isConfigured) {
         }
       }
     },
-    rpc: (functionName: string) => ({
+    auth: {
+      getUser: () => ({
+        then: (callback: any) => {
+          setTimeout(() => {
+            // 在模拟模式下也可以返回NULL用户，测试外键约束处理
+            const returnNull = Math.random() < 0.3; // 30%概率返回NULL
+            callback({
+              data: {
+                user: returnNull ? null : {
+                  id: '550e8400-e29b-41d4-a716-446655440001',
+                  email: 'mock@example.com',
+                  role: 'teacher'
+                }
+              },
+              error: null
+            })
+          }, 100)
+        }
+      }),
+      signIn: () => ({
+        then: (callback: any) => {
+          setTimeout(() => {
+            callback({
+              data: {
+                user: {
+                  id: '550e8400-e29b-41d4-a716-446655440001',
+                  email: 'mock@example.com'
+                },
+                session: {
+                  access_token: 'mock-token'
+                }
+              },
+              error: null
+            })
+          }, 100)
+        }
+      }),
+      signOut: () => ({
+        then: (callback: any) => {
+          setTimeout(() => {
+            callback({
+              error: null
+            })
+          }, 100)
+        }
+      })
+    },
+    rpc: (functionName: string, params?: any) => ({
       then: (callback: any) => {
         setTimeout(() => {
           if (functionName === 'initialize_student_profile') {
@@ -118,10 +165,23 @@ if (isConfigured) {
               data: 'mock-profile-id',
               error: null
             })
+          } else if (functionName === 'simple_import_graduation_data') {
+            // 模拟毕业去向导入
+            callback({
+              data: 'SUCCESS: 导入成功',
+              error: null
+            })
+          } else if (functionName === 'batch_import_graduation_destinations') {
+            // 模拟批量导入
+            callback({
+              data: 'mock-batch-id-' + Date.now(),
+              error: null
+            })
           } else {
+            console.warn(`模拟RPC调用: ${functionName}`, params);
             callback({
               data: null,
-              error: { message: 'RPC函数不存在' }
+              error: { message: 'RPC函数不存在，请在生产环境中配置' }
             })
           }
         }, 300)

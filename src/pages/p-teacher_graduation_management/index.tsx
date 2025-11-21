@@ -226,6 +226,13 @@ const TeacherGraduationManagement: React.FC = () => {
       return;
     }
 
+    // 验证文件格式
+    const fileExtension = selectedFile.name.split('.').pop()?.toLowerCase();
+    if (!['xlsx', 'xls'].includes(fileExtension || '')) {
+      alert('请选择正确的Excel文件格式（.xlsx 或 .xls）');
+      return;
+    }
+
     setImportLoading(true);
     try {
       // 读取Excel文件
@@ -234,41 +241,120 @@ const TeacherGraduationManagement: React.FC = () => {
         try {
           const data = new Uint8Array(e.target?.result as ArrayBuffer);
           const workbook = XLSX.read(data, { type: 'array' });
+          
+          if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
+            throw new Error('Excel文件中没有工作表');
+          }
+          
           const sheetName = workbook.SheetNames[0];
           const worksheet = workbook.Sheets[sheetName];
+          
+          if (!worksheet) {
+            throw new Error('无法读取工作表内容');
+          }
+          
           const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+          
+          if (!Array.isArray(jsonData) || jsonData.length === 0) {
+            throw new Error('Excel文件内容为空');
+          }
+
+          console.log('Excel原始数据:', jsonData);
 
           // 处理数据，跳过说明行
           const importData: any[] = [];
+          let foundDataStart = false;
+          
           for (let i = 0; i < jsonData.length; i++) {
             const row = jsonData[i] as any[];
-            // 跳过说明行和空行
-            if (i < 10 || !row[0] || row[0] === '说明' || row[0] === '去向类型可选值：') {
+            
+            // 跳过空行
+            if (!row || row.length === 0 || !row[0]) {
               continue;
             }
             
-            // 解析数据行
-            if (row[0] && row[0] !== '示例数据（请按格式填写）：') {
+            const firstCell = String(row[0] || '').trim();
+            
+            // 跳过说明行
+            if (firstCell === '说明' || 
+                firstCell === '去向类型可选值：' ||
+                firstCell.startsWith('employment') ||
+                firstCell.startsWith('furtherstudy') ||
+                firstCell.startsWith('abroad') ||
+                firstCell.startsWith('entrepreneurship') ||
+                firstCell.startsWith('unemployed') ||
+                firstCell.startsWith('other')) {
+              continue;
+            }
+            
+            // 跳过示例标题行
+            if (firstCell === '示例数据（请按格式填写）：') {
+              foundDataStart = true;
+              continue;
+            }
+            
+            // 跳过表头行
+            if (firstCell === '学号') {
+              foundDataStart = true;
+              continue;
+            }
+            
+            // 如果找到了数据开始标记或者是有效的学号格式，则处理这行数据
+            if (foundDataStart || (firstCell && /^\d{4,}$/.test(firstCell))) {
+              // 验证必需字段
+              if (!firstCell || !row[1]) {
+                console.warn(`第${i + 1}行缺少必需字段（学号或去向类型），跳过`);
+                continue;
+              }
+              
+              // 验证去向类型是否有效
+              const validTypes = ['employment', 'furtherstudy', 'abroad', 'entrepreneurship', 'unemployed', 'other', '就业', '升学', '出国', '创业', '待业', '其他'];
+              const destinationType = String(row[1] || '').trim();
+              
+              if (!validTypes.includes(destinationType)) {
+                console.warn(`第${i + 1}行去向类型无效: ${destinationType}，跳过`);
+                continue;
+              }
+              
+              // 标准化去向类型为英文
+              let normalizedType = destinationType;
+              const typeMapping: Record<string, string> = {
+                '就业': 'employment',
+                '升学': 'furtherstudy', 
+                '出国': 'abroad',
+                '创业': 'entrepreneurship',
+                '待业': 'unemployed',
+                '其他': 'other'
+              };
+              
+              if (typeMapping[destinationType]) {
+                normalizedType = typeMapping[destinationType];
+              }
+              
               importData.push({
-                student_number: row[0],
-                destination_type: row[1],
-                company_name: row[2] || '',
-                position: row[3] || '',
-                salary: row[4] || '',
-                work_location: row[5] || '',
-                school_name: row[6] || '',
-                major: row[7] || '',
-                degree: row[8] || '',
-                abroad_country: row[9] || '',
-                startup_name: row[10] || '',
-                startup_role: row[11] || '',
-                other_description: row[12] || ''
+                student_number: firstCell,
+                destination_type: normalizedType,
+                company_name: String(row[2] || '').trim(),
+                position: String(row[3] || '').trim(),
+                salary: row[4] ? String(row[4]).trim() : '',
+                work_location: String(row[5] || '').trim(),
+                school_name: String(row[6] || '').trim(),
+                major: String(row[7] || '').trim(),
+                degree: String(row[8] || '').trim(),
+                abroad_country: String(row[9] || '').trim(),
+                startup_name: String(row[10] || '').trim(),
+                startup_role: String(row[11] || '').trim(),
+                other_description: String(row[12] || '').trim()
               });
+              
+              foundDataStart = true;
             }
           }
 
+          console.log('处理后的导入数据:', importData);
+
           if (importData.length === 0) {
-            alert('Excel文件中没有找到有效的导入数据');
+            alert('Excel文件中没有找到有效的导入数据。请检查文件格式是否正确，确保数据行包含有效的学号和去向类型。');
             setImportLoading(false);
             return;
           }
@@ -281,17 +367,36 @@ const TeacherGraduationManagement: React.FC = () => {
             importData
           );
 
-          alert(`导入完成！成功 ${result.success_count} 条，失败 ${result.failed_count} 条`);
+          alert(`导入完成！成功 ${result.success_count} 条，失败 ${result.failed_count} 条${result.failed_count > 0 ? '，请查看导入历史了解详细错误信息' : ''}`);
           setShowBatchImportModal(false);
           setSelectedFile(null);
           loadGraduationData();
           loadImportBatches();
         } catch (error) {
           console.error('处理Excel文件失败:', error);
-          alert('处理Excel文件失败，请检查文件格式是否正确');
+          let errorMessage = '处理Excel文件失败，请检查文件格式是否正确';
+          
+          if (error instanceof Error) {
+            if (error.message.includes('Unsupported file')) {
+              errorMessage = '不支持的文件格式，请确保是有效的Excel文件（.xlsx 或 .xls）';
+            } else if (error.message.includes('workbook')) {
+              errorMessage = 'Excel文件格式错误，请重新下载模板文件';
+            } else if (error.message.includes('empty')) {
+              errorMessage = 'Excel文件内容为空，请检查文件是否包含数据';
+            } else {
+              errorMessage = `处理文件时出错：${error.message}`;
+            }
+          }
+          
+          alert(errorMessage);
         } finally {
           setImportLoading(false);
         }
+      };
+
+      reader.onerror = () => {
+        alert('读取文件失败，请重试');
+        setImportLoading(false);
       };
 
       reader.readAsArrayBuffer(selectedFile);

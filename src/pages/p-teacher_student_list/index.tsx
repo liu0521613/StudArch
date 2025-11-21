@@ -107,11 +107,14 @@ const TeacherStudentList: React.FC = () => {
     }
   };
 
-  // 获取可导入的学生列表
+  // 获取可导入的学生列表（未导入的学生）
   const fetchAvailableStudents = async () => {
     try {
       setImportLoading(true);
-      const result = await UserService.getAuthorizedStudents({
+      // 假设当前教师的ID是固定的，实际应用中应该从认证状态中获取
+      const teacherId = '00000000-0000-0000-0000-000000000001';
+      
+      const result = await UserService.getAvailableStudentsForImport(teacherId, {
         keyword: importSearchTerm,
         page: importPage,
         limit: 20
@@ -120,10 +123,32 @@ const TeacherStudentList: React.FC = () => {
       setImportTotalCount(result.total);
     } catch (error) {
       console.error('获取可导入学生失败:', error);
-      // 使用演示数据，确保只显示学生角色
+      // 使用演示数据，但需要过滤掉已导入的学生
       let filteredStudents = demoAuthorizedStudents.filter(student => 
         student.role_id === '3' && student.status === 'active'
       );
+      
+      // 获取当前教师已导入的学生ID（从localStorage获取）
+      const savedImportedIds = localStorage.getItem('importedStudentIds');
+      const importedStudentIds = new Set<string>();
+      
+      if (savedImportedIds) {
+        try {
+          const parsedIds = JSON.parse(savedImportedIds);
+          parsedIds.forEach((id: string) => importedStudentIds.add(id));
+        } catch (e) {
+          console.error('解析localStorage中的导入学生ID失败:', e);
+        }
+      }
+      
+      // 同时添加演示数据中已固定的学生
+      demoTeacherStudents.forEach(s => importedStudentIds.add(s.id));
+      
+      // 过滤掉已导入的学生
+      filteredStudents = filteredStudents.filter(student => 
+        !importedStudentIds.has(student.id)
+      );
+      
       if (importSearchTerm) {
         const searchTermLower = importSearchTerm.toLowerCase();
         filteredStudents = filteredStudents.filter(student => 
@@ -150,6 +175,8 @@ const TeacherStudentList: React.FC = () => {
   // 当导入模态框打开时获取可用学生
   useEffect(() => {
     if (isImportModalOpen) {
+      // 调试导入状态
+      debugImportState();
       fetchAvailableStudents();
     }
   }, [isImportModalOpen, importSearchTerm, importPage]);
@@ -168,6 +195,9 @@ const TeacherStudentList: React.FC = () => {
     }
     
     fetchTeacherStudents();
+    
+    // 调试：打印导入状态
+    setTimeout(() => debugImportState(), 1000);
   }, [searchTerm, currentPage, pageSize]);
 
   // 当筛选条件改变时，重新获取数据
@@ -267,29 +297,84 @@ const TeacherStudentList: React.FC = () => {
     setEditingStudent(null);
   };
 
+  // 调试函数：查看当前导入状态
+  const debugImportState = () => {
+    const savedImportedIds = localStorage.getItem('importedStudentIds');
+    console.log('=== 导入状态调试 ===');
+    console.log('localStorage中的导入ID:', savedImportedIds);
+    if (savedImportedIds) {
+      const parsed = JSON.parse(savedImportedIds);
+      console.log('已导入的学生ID列表:', parsed);
+      const importedStudents = demoAuthorizedStudents.filter(s => parsed.includes(s.id));
+      console.log('已导入的学生详情:', importedStudents.map(s => ({ id: s.id, name: s.full_name })));
+    }
+    console.log('教师基础学生:', demoTeacherStudents.map(s => ({ id: s.id, name: s.full_name })));
+    console.log('==================');
+  };
+
   const handleBatchDelete = async () => {
-    if (selectedStudents.size > 0 && confirm('确定要移除选中的学生吗？')) {
-      try {
-        const currentTeacherId = '00000000-0000-0000-0000-000000000001';
-        const promises = Array.from(selectedStudents).map(studentId =>
-          UserService.removeStudentFromTeacher(currentTeacherId, studentId)
-        );
-        
-        await Promise.all(promises);
-        setSelectedStudents(new Set());
-        fetchTeacherStudents(); // 重新获取数据
-      } catch (error) {
-        console.error('批量移除学生失败:', error);
-        alert('批量移除学生失败，请稍后重试');
+    if (selectedStudents.size === 0) {
+      alert('请选择要删除的学生');
+      return;
+    }
+
+    const selectedCount = selectedStudents.size;
+    const confirmMessage = `确定要删除选中的 ${selectedCount} 个学生吗？\n\n此操作将从系统中完全删除这些学生的所有信息，包括：\n• 学生基本信息\n• 档案信息\n• 毕业去向信息\n• 关联数据\n\n此操作不可恢复！`;
+
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+
+    // 二次确认
+    const finalConfirm = prompt('请输入 "DELETE" 来确认删除操作：');
+    if (finalConfirm !== 'DELETE') {
+      alert('确认输入不正确，操作已取消');
+      return;
+    }
+
+    try {
+      let successCount = 0;
+      let failedCount = 0;
+      const errors: string[] = [];
+
+      for (const studentId of selectedStudents) {
+        try {
+          // 首先从教师管理列表中移除
+          const currentTeacherId = '00000000-0000-0000-0000-000000000001';
+          await UserService.removeStudentFromTeacher(currentTeacherId, studentId);
+          
+          // 然后完全删除学生数据
+          await UserService.deleteUser(studentId);
+          successCount++;
+        } catch (error) {
+          failedCount++;
+          const errorMsg = error instanceof Error ? error.message : '未知错误';
+          errors.push(`学生ID ${studentId}: ${errorMsg}`);
+          console.error(`删除学生 ${studentId} 失败:`, error);
+        }
       }
+
+      setSelectedStudents(new Set());
+      fetchTeacherStudents(); // 重新获取数据
+
+      // 显示详细的结果
+      if (successCount > 0 && failedCount === 0) {
+        alert(`✅ 成功删除 ${successCount} 个学生`);
+      } else if (successCount > 0 && failedCount > 0) {
+        const errorDetails = errors.slice(0, 3).join('\n');
+        const moreErrors = errors.length > 3 ? `\n...还有 ${errors.length - 3} 个错误` : '';
+        alert(`⚠️ 部分删除完成\n\n✅ 成功删除: ${successCount} 个\n❌ 删除失败: ${failedCount} 个\n\n失败详情:\n${errorDetails}${moreErrors}`);
+      } else {
+        alert(`❌ 删除失败，共 ${failedCount} 个学生删除失败\n\n${errors.slice(0, 2).join('\n')}`);
+      }
+    } catch (error) {
+      console.error('批量删除学生失败:', error);
+      alert('批量删除操作失败，请稍后重试');
     }
   };
 
   const handleBatchResetPassword = () => {
-    if (selectedStudents.size > 0) {
-      // 实际应用中这里会处理密码重置逻辑
-      alert('批量重置密码功能');
-    }
+    // 批量重置密码功能已移除
   };
 
   const handleAvailableStudentSelect = (studentId: string, checked: boolean) => {
@@ -354,9 +439,21 @@ const TeacherStudentList: React.FC = () => {
         selectedAvailableStudents.has(student.id)
       );
       
+      // 获取当前已保存的导入学生ID
+      const savedImportedIds = localStorage.getItem('importedStudentIds');
+      const existingImportedIds: string[] = savedImportedIds ? JSON.parse(savedImportedIds) : [];
+      
+      // 合并新导入的学生ID，避免重复
+      const newImportedIds = Array.from(selectedAvailableStudents);
+      const allImportedIds = [...new Set([...existingImportedIds, ...newImportedIds])];
+      
       // 保存到localStorage以确保持久化
-      const importedStudentIds = Array.from(selectedAvailableStudents);
-      localStorage.setItem('importedStudentIds', JSON.stringify(importedStudentIds));
+      localStorage.setItem('importedStudentIds', JSON.stringify(allImportedIds));
+      
+      console.log('保存的导入学生ID:', allImportedIds);
+      
+      // 调试：检查导入状态
+      setTimeout(() => debugImportState(), 500);
       
       // 添加到当前学生列表
       setStudentsData(prev => [...prev, ...newStudents]);
@@ -518,6 +615,15 @@ const TeacherStudentList: React.FC = () => {
               </nav>
             </div>
             <div className="flex space-x-3">
+              {/* 临时调试按钮 */}
+              <button 
+                onClick={debugImportState}
+                className="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors flex items-center space-x-2"
+                title="调试导入状态"
+              >
+                <i className="fas fa-bug"></i>
+                <span>调试</span>
+              </button>
               <button 
                 onClick={() => setIsImportModalOpen(true)}
                 className="px-4 py-2 bg-white border border-border-light rounded-lg hover:bg-gray-50 transition-colors flex items-center space-x-2"
@@ -585,18 +691,11 @@ const TeacherStudentList: React.FC = () => {
               <button 
                 onClick={handleBatchDelete}
                 disabled={selectedStudents.size === 0}
-                className="px-4 py-2 text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors flex items-center space-x-2 disabled:opacity-50"
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:bg-gray-300"
+                title="删除选中的学生及其所有相关数据（不可恢复）"
               >
-                <i className="fas fa-trash"></i>
-                <span>批量删除</span>
-              </button>
-              <button 
-                onClick={handleBatchResetPassword}
-                disabled={selectedStudents.size === 0}
-                className="px-4 py-2 text-orange-600 border border-orange-200 rounded-lg hover:bg-orange-50 transition-colors flex items-center space-x-2 disabled:opacity-50"
-              >
-                <i className="fas fa-key"></i>
-                <span>批量重置密码</span>
+                <i className="fas fa-exclamation-triangle"></i>
+                <span>批量删除学生</span>
               </button>
             </div>
           </div>
@@ -772,7 +871,10 @@ const TeacherStudentList: React.FC = () => {
             <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
               <div className="p-6 border-b border-border-light">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-text-primary">批量导入学生</h3>
+                  <div>
+                    <h3 className="text-lg font-semibold text-text-primary">批量导入学生</h3>
+                    <p className="text-sm text-text-secondary mt-1">以下列表仅显示尚未导入到您管理名单中的学生</p>
+                  </div>
                   <button 
                     onClick={() => {
                       setIsImportModalOpen(false);
@@ -817,7 +919,7 @@ const TeacherStudentList: React.FC = () => {
                     已选择 <span className="font-semibold text-secondary">{selectedAvailableStudents.size}</span> 个学生
                   </div>
                   <div className="text-sm text-text-secondary">
-                    共找到 <span className="font-semibold">{importTotalCount}</span> 个已授权学生
+                    共找到 <span className="font-semibold text-green-600">{importTotalCount}</span> 个可导入学生
                   </div>
                 </div>
 
@@ -833,8 +935,9 @@ const TeacherStudentList: React.FC = () => {
                   ) : availableStudents.length === 0 ? (
                     <div className="flex items-center justify-center h-64">
                       <div className="text-center">
-                        <i className="fas fa-users text-3xl text-gray-300 mb-4"></i>
-                        <p className="text-text-secondary">暂无可导入的学生</p>
+                        <i className="fas fa-check-circle text-5xl text-green-500 mb-4"></i>
+                        <p className="text-text-secondary mb-2">暂无可导入的学生</p>
+                        <p className="text-sm text-text-secondary">所有学生都已在您的管理名单中</p>
                       </div>
                     </div>
                   ) : (

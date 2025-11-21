@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { safeGetUserId } from './userHelper';
 
 export interface GraduationDestination {
   id: string;
@@ -299,11 +300,9 @@ export class GraduationDestinationService {
     reviewComment?: string
   ): Promise<GraduationDestination> {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        throw new Error('用户未登录');
-      }
+      // 安全获取用户信息
+      const userId = await safeGetUserId();
+      console.log('审核操作，获取到的用户ID:', userId);
 
       const { data, error } = await supabase
         .from('graduation_destinations')
@@ -311,7 +310,7 @@ export class GraduationDestinationService {
           status,
           review_comment: reviewComment,
           reviewed_at: new Date().toISOString(),
-          reviewed_by: user.id,
+          reviewed_by: userId,
           updated_at: new Date().toISOString()
         })
         .eq('id', id)
@@ -343,11 +342,9 @@ export class GraduationDestinationService {
     data: any[]
   ): Promise<GraduationImportBatch> {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        throw new Error('用户未登录');
-      }
+      // 安全获取用户信息
+      const userId = await safeGetUserId();
+      console.log('获取到的用户ID:', userId);
 
       // 验证数据格式
       if (!Array.isArray(data) || data.length === 0) {
@@ -361,14 +358,14 @@ export class GraduationDestinationService {
           p_batch_name: batchName,
           p_filename: filename,
           p_data: data,
-          p_imported_by: user.id
+          p_imported_by: userId
         }
       );
 
       if (error) {
         console.error('RPC调用失败:', error);
         // 如果存储过程不存在，尝试手动处理
-        return this.handleManualImport(batchName, filename, data, user.id);
+        return this.handleManualImport(batchName, filename, data, userId);
       }
 
       // 获取导入批次详情
@@ -382,7 +379,7 @@ export class GraduationDestinationService {
         failed_count: 0,
         status: 'completed' as const,
         error_details: [],
-        imported_by: user.id,
+        imported_by: userId,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
@@ -397,7 +394,7 @@ export class GraduationDestinationService {
     batchName: string,
     filename: string,
     data: any[],
-    userId: string
+    userId: string | null
   ): Promise<GraduationImportBatch> {
     let successCount = 0;
     let failedCount = 0;
@@ -419,13 +416,18 @@ export class GraduationDestinationService {
       .single();
 
     if (batchError || !batch) {
-      throw new Error(`创建导入批次失败: ${batchError?.message}`);
+      throw new Error(`创建导入批次失败: ${batchError?.message || '未知错误'}`);
     }
 
     // 逐条处理数据
     for (let i = 0; i < data.length; i++) {
       const row = data[i];
       try {
+        // 验证必需字段
+        if (!row.student_number || !row.destination_type) {
+          throw new Error('缺少必需字段：学号或去向类型');
+        }
+
         // 使用简化的导入函数
         const { data: result, error: importError } = await supabase
           .rpc('simple_import_graduation_data', {
@@ -433,7 +435,7 @@ export class GraduationDestinationService {
             p_destination_type: row.destination_type,
             p_company_name: row.company_name || null,
             p_position: row.position || null,
-            p_salary: row.salary ? parseFloat(row.salary) : null,
+            p_salary: row.salary ? parseFloat(row.salary.toString()) : null,
             p_work_location: row.work_location || null,
             p_school_name: row.school_name || null,
             p_major: row.major || null,
@@ -444,23 +446,34 @@ export class GraduationDestinationService {
             p_other_description: row.other_description || null
           });
 
-        if (importError || !result) {
-          throw new Error(`导入失败: ${importError?.message}`);
+        if (importError) {
+          console.error(`第${i + 1}行导入失败:`, importError);
+          throw new Error(`数据库错误: ${importError.message}`);
         }
 
         const resultText = Array.isArray(result) ? result[0] : result;
+        console.log(`第${i + 1}行导入结果:`, {
+          student_number: row.student_number,
+          result: resultText,
+          result_type: typeof resultText
+        });
+        
         if (typeof resultText === 'string' && resultText.startsWith('SUCCESS')) {
           successCount++;
+          console.log(`✅ 第${i + 1}行成功:`, row.student_number);
         } else {
+          const errorMessage = resultText || '导入失败';
+          console.error(`❌ 第${i + 1}行失败:`, errorMessage);
           errors.push({
             row_number: i + 1,
             student_id: row.student_number,
-            error_message: resultText || '导入失败',
+            error_message: errorMessage,
             original_data: row
           });
           failedCount++;
         }
       } catch (error) {
+        console.error(`处理第${i + 1}行数据失败:`, error);
         errors.push({
           row_number: i + 1,
           student_id: row.student_number,
@@ -472,12 +485,13 @@ export class GraduationDestinationService {
     }
 
     // 更新批次状态
+    const finalStatus = failedCount === 0 ? 'completed' : 'completed';
     const { error: updateError } = await supabase
       .from('graduation_import_batches')
       .update({
         success_count: successCount,
         failed_count: failedCount,
-        status: failedCount === 0 ? 'completed' : 'completed',
+        status: finalStatus,
         updated_at: new Date().toISOString()
       })
       .eq('id', batch.id);
@@ -488,19 +502,23 @@ export class GraduationDestinationService {
 
     // 记录失败详情
     if (errors.length > 0) {
-      await supabase
+      const { error: insertError } = await supabase
         .from('graduation_import_failures')
         .insert(errors.map(error => ({
           ...error,
           batch_id: batch.id
         })));
+
+      if (insertError) {
+        console.error('记录失败详情失败:', insertError);
+      }
     }
 
     return {
       ...batch,
       success_count: successCount,
       failed_count: failedCount,
-      status: failedCount === 0 ? 'completed' : 'completed'
+      status: finalStatus as 'completed'
     };
   }
 

@@ -208,7 +208,117 @@ export class UserService {
     return data
   }
 
-  // 获取所有已授权的学生（用于教师批量导入）
+  // 获取未导入的学生（用于教师批量导入）
+  static async getAvailableStudentsForImport(teacherId: string, params?: {
+    keyword?: string
+    grade?: string
+    department?: string
+    page?: number
+    limit?: number
+  }): Promise<{ students: UserWithRole[], total: number }> {
+    const {
+      keyword = '',
+      grade,
+      department,
+      page = 1,
+      limit = 50
+    } = params || {}
+
+    try {
+      // 首先尝试使用专门的函数获取未导入的学生
+      const { data, error } = await supabase
+        .rpc('get_available_students_for_import', {
+          p_teacher_id: teacherId,
+          p_keyword: keyword,
+          p_grade: grade || '',
+          p_department: department || '',
+          p_page: page,
+          p_limit: limit
+        });
+
+      if (!error && data) {
+        // 兼容两种返回格式
+        if (Array.isArray(data) && data.length > 0) {
+          // 格式1: 返回数组
+          const result = data[0];
+          return {
+            students: (result.students || []) as UserWithRole[],
+            total: result.total_count || 0
+          };
+        } else {
+          // 格式2: 返回对象
+          const result = data as { students: UserWithRole[], total_count: number };
+          return {
+            students: (result.students || []) as UserWithRole[],
+            total: result.total_count || 0
+          };
+        }
+      }
+    } catch (error) {
+      console.warn('RPC函数调用失败，使用fallback方法:', error);
+    }
+
+    // Fallback: 手动查询未导入的学生
+    // 1. 首先获取教师已导入的学生ID列表
+    const { data: importedData, error: importedError } = await supabase
+      .from('teacher_students')
+      .select('student_id')
+      .eq('teacher_id', teacherId);
+
+    if (importedError) {
+      console.warn('获取已导入学生列表失败:', importedError.message);
+    }
+
+    const importedStudentIds = new Set(
+      importedData?.map(item => item.student_id) || []
+    );
+
+    // 2. 获取所有学生，排除已导入的
+    let query = supabase
+      .from('users')
+      .select(`
+        *,
+        role:roles(*)
+      `, { count: 'exact' })
+      .eq('role_id', '3') // 只获取学生角色
+      .eq('status', 'active');
+
+    // 如果有已导入的学生，排除它们
+    if (importedStudentIds.size > 0) {
+      query = query.not('id', 'in', Array.from(importedStudentIds));
+    }
+
+    // 搜索条件
+    if (keyword) {
+      query = query.or(`full_name.ilike.%${keyword}%,user_number.ilike.%${keyword}%,email.ilike.%${keyword}%`);
+    }
+
+    if (grade) {
+      query = query.eq('grade', grade);
+    }
+
+    if (department) {
+      query = query.eq('department', department);
+    }
+
+    // 排序和分页
+    query = query
+      .order('created_at', { ascending: false })
+      .range((page - 1) * limit, page * limit - 1);
+
+    const { data, error: fallbackError, count } = await query;
+
+    if (fallbackError) {
+      throw new Error(`获取可导入学生列表失败: ${fallbackError.message}`);
+    }
+
+    return {
+      students: data as UserWithRole[] || [],
+      total: count || 0
+    };
+  }
+
+  // 获取所有已授权的学生（用于教师批量导入）- 保留原方法以兼容
   static async getAuthorizedStudents(params?: {
     keyword?: string
     grade?: string
