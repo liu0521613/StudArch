@@ -24,11 +24,7 @@ export class GraduationDestinationService {
     } = params || {};
 
     try {
-<<<<<<< HEAD
-      // 从 graduation_destinations 表查询
-=======
       // 先获取毕业去向数据，不进行嵌套查询
->>>>>>> 4cbb1f17878d2f1bf30e38100118c634a24eeb64
       let query = supabase
         .from('graduation_destinations')
         .select('*', { count: 'exact' });
@@ -56,49 +52,6 @@ export class GraduationDestinationService {
         throw new Error(`获取毕业去向列表失败: ${error.message}`);
       }
 
-<<<<<<< HEAD
-      const studentIds = [...new Set((data || []).map((item: any) => item.student_id).filter(Boolean))];
-      
-      // 批量查询学生信息
-      let studentsMap: Record<string, any> = {};
-      if (studentIds.length > 0) {
-        const { data: studentsData } = await supabase
-          .from('users')
-          .select('id, user_number, full_name, class_name')
-          .in('id', studentIds);
-
-        if (studentsData) {
-          studentsMap = studentsData.reduce((acc: Record<string, any>, student: any) => {
-            acc[student.id] = {
-              id: student.id,
-              student_number: student.user_number,
-              full_name: student.full_name,
-              class_name: student.class_name
-            };
-            return acc;
-          }, {});
-        }
-      }
-
-      // 为每个去向记录添加学生信息
-      const result = (data || []).map((item: any) => {
-        const studentInfo = studentsMap[item.student_id];
-        return {
-          ...item,
-          student: studentInfo ? {
-            student_number: studentInfo.student_number,
-            full_name: studentInfo.full_name,
-            class_name: studentInfo.class_name
-          } : null
-        };
-      }).filter(Boolean) as GraduationDestination[];
-
-      return {
-        destinations: result,
-        total: count || 0,
-        page,
-        limit
-=======
       // 如果有数据，分别获取学生信息
       if (data && data.length > 0) {
         // 获取所有唯一的学生ID
@@ -146,8 +99,6 @@ export class GraduationDestinationService {
 
       return {
         destinations: [],
-        total: 0
->>>>>>> 4cbb1f17878d2f1bf30e38100118c634a24eeb64
       };
     } catch (error) {
       console.error('获取毕业去向失败:', error);

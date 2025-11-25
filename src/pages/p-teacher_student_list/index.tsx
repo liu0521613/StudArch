@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import styles from './styles.module.css';
 import { UserService } from '../../services/userService';
+import { TrainingProgramService } from '../../services/trainingProgramService';
 import { UserWithRole } from '../../types/user';
+import { TrainingProgramCourse, TrainingProgramImportResult } from '../../types/trainingProgram';
 
 const TeacherStudentList: React.FC = () => {
   const navigate = useNavigate();
@@ -28,6 +30,13 @@ const TeacherStudentList: React.FC = () => {
   const [importSearchTerm, setImportSearchTerm] = useState('');
   const [importPage, setImportPage] = useState(1);
   const [importTotalCount, setImportTotalCount] = useState(0);
+
+  // 培养方案导入相关状态
+  const [isTrainingProgramModalOpen, setIsTrainingProgramModalOpen] = useState(false);
+  const [trainingProgramFile, setTrainingProgramFile] = useState<File | null>(null);
+  const [trainingProgramCourses, setTrainingProgramCourses] = useState<TrainingProgramCourse[]>([]);
+  const [trainingProgramImporting, setTrainingProgramImporting] = useState(false);
+  const [trainingProgramImportResult, setTrainingProgramImportResult] = useState<TrainingProgramImportResult | null>(null);
 
   // 获取教师管理的学生列表
   const fetchTeacherStudents = async () => {
@@ -345,6 +354,90 @@ ${errorDetails}${moreErrors}`);
     }
   };
 
+  // 培养方案导入处理函数
+  const handleDownloadTrainingProgramTemplate = async () => {
+    try {
+      await TrainingProgramService.generateAndDownloadTemplate();
+    } catch (error) {
+      console.error('下载模板失败:', error);
+      alert('下载模板失败，请重试');
+    }
+  };
+
+  const handleTrainingProgramFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // 验证文件类型
+      const allowedTypes = [
+        'application/vnd.ms-excel',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'text/csv',
+        'application/csv'
+      ];
+      
+      if (!allowedTypes.includes(file.type) && !file.name.match(/\.(xlsx?|csv)$/i)) {
+        alert('请选择Excel文件(.xlsx, .xls)或CSV文件');
+        return;
+      }
+
+      setTrainingProgramFile(file);
+      setTrainingProgramImportResult(null);
+      
+      // 解析文件
+      TrainingProgramService.parseExcelFile(file)
+        .then(courses => {
+          setTrainingProgramCourses(courses);
+          alert(`成功解析 ${courses.length} 条课程记录`);
+        })
+        .catch(error => {
+          console.error('文件解析失败:', error);
+          alert(`文件解析失败: ${error instanceof Error ? error.message : '未知错误'}`);
+          setTrainingProgramFile(null);
+          setTrainingProgramCourses([]);
+        });
+    }
+  };
+
+  const handleTrainingProgramImport = async () => {
+    if (trainingProgramCourses.length === 0) {
+      alert('没有可导入的课程数据');
+      return;
+    }
+
+    const confirmMessage = `确定要导入 ${trainingProgramCourses.length} 条课程记录吗？`;
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+
+    try {
+      setTrainingProgramImporting(true);
+      const result = await TrainingProgramService.importTrainingProgram(trainingProgramCourses);
+      setTrainingProgramImportResult(result);
+      
+      if (result.success > 0) {
+        alert(`✅ 成功导入 ${result.success} 条课程记录${result.failed > 0 ? `，失败 ${result.failed} 条` : ''}`);
+        // 重置状态
+        setTrainingProgramFile(null);
+        setTrainingProgramCourses([]);
+        setTrainingProgramImportResult(null);
+      } else {
+        alert('❌ 导入失败，请检查数据格式');
+      }
+    } catch (error) {
+      console.error('导入失败:', error);
+      alert(`导入失败: ${error instanceof Error ? error.message : '未知错误'}`);
+    } finally {
+      setTrainingProgramImporting(false);
+    }
+  };
+
+  const handleTrainingProgramModalClose = () => {
+    setIsTrainingProgramModalOpen(false);
+    setTrainingProgramFile(null);
+    setTrainingProgramCourses([]);
+    setTrainingProgramImportResult(null);
+  };
+
   const handleLogout = () => {
     if (confirm('确定要退出登录吗？')) {
       navigate('/login');
@@ -547,6 +640,14 @@ ${errorDetails}${moreErrors}`);
             
             {/* 批量操作 */}
             <div className="flex items-center space-x-3">
+              <button 
+                onClick={() => setIsTrainingProgramModalOpen(true)}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2"
+                title="导入培养方案"
+              >
+                <i className="fas fa-file-excel"></i>
+                <span>导入培养方案</span>
+              </button>
               <button 
                 onClick={handleBatchDelete}
                 disabled={selectedStudents.size === 0}
@@ -897,6 +998,168 @@ ${errorDetails}${moreErrors}`);
                   className="px-4 py-2 bg-secondary text-white rounded-lg hover:bg-accent transition-colors disabled:opacity-50"
                 >
                   {importLoading ? '导入中...' : `确认导入 (${selectedAvailableStudents.size})`}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 导入培养方案模态弹窗 */}
+      {isTrainingProgramModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50">
+          <div className="flex items-center justify-center min-h-screen p-4">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+              <div className="p-6 border-b border-border-light">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold text-text-primary">导入培养方案</h3>
+                    <p className="text-sm text-text-secondary mt-1">支持Excel(.xlsx, .xls)和CSV格式文件</p>
+                  </div>
+                  <button 
+                    onClick={handleTrainingProgramModalClose}
+                    className="text-text-secondary hover:text-text-primary transition-colors"
+                  >
+                    <i className="fas fa-times text-xl"></i>
+                  </button>
+                </div>
+              </div>
+              
+              <div className="p-6 flex-1 overflow-hidden flex flex-col">
+                {/* 下载模板区域 */}
+                <div className="mb-6 p-4 bg-blue-50 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-medium text-blue-900 mb-1">第一步：下载模板</h4>
+                      <p className="text-sm text-blue-700">请先下载官方模板，按照模板格式填写数据</p>
+                    </div>
+                    <button 
+                      onClick={handleDownloadTrainingProgramTemplate}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
+                    >
+                      <i className="fas fa-download"></i>
+                      <span>下载模板</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* 文件上传区域 */}
+                <div className="mb-6">
+                  <h4 className="font-medium text-text-primary mb-3">第二步：上传文件</h4>
+                  <div className="border-2 border-dashed border-border-light rounded-lg p-6 text-center hover:border-secondary transition-colors">
+                    <input 
+                      type="file"
+                      id="training-program-file"
+                      accept=".xlsx,.xls,.csv"
+                      onChange={handleTrainingProgramFileSelect}
+                      className="hidden"
+                    />
+                    <label 
+                      htmlFor="training-program-file"
+                      className="cursor-pointer flex flex-col items-center"
+                    >
+                      <i className="fas fa-cloud-upload-alt text-4xl text-text-secondary mb-3"></i>
+                      <span className="text-text-primary font-medium">点击选择文件或拖拽到此处</span>
+                      <span className="text-sm text-text-secondary mt-1">支持 .xlsx, .xls, .csv 格式</span>
+                    </label>
+                  </div>
+                </div>
+
+                {/* 文件信息显示 */}
+                {trainingProgramFile && (
+                  <div className="mb-6 p-4 bg-green-50 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <i className="fas fa-file-excel text-green-600 text-xl"></i>
+                        <div>
+                          <p className="font-medium text-green-900">{trainingProgramFile.name}</p>
+                          <p className="text-sm text-green-700">
+                            {trainingProgramCourses.length} 条课程记录
+                          </p>
+                        </div>
+                      </div>
+                      <button 
+                        onClick={() => {
+                          setTrainingProgramFile(null);
+                          setTrainingProgramCourses([]);
+                          setTrainingProgramImportResult(null);
+                        }}
+                        className="text-red-500 hover:text-red-700 transition-colors"
+                      >
+                        <i className="fas fa-times-circle text-xl"></i>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* 数据预览区域 */}
+                {trainingProgramCourses.length > 0 && (
+                  <div className="flex-1 overflow-hidden flex flex-col">
+                    <h4 className="font-medium text-text-primary mb-3">数据预览</h4>
+                    <div className="flex-1 overflow-auto border border-border-light rounded-lg">
+                      <table className="w-full">
+                        <thead className="bg-gray-50 sticky top-0">
+                          <tr>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-text-secondary uppercase">课程号</th>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-text-secondary uppercase">课程名称</th>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-text-secondary uppercase">学分</th>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-text-secondary uppercase">建议修读年级</th>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-text-secondary uppercase">学期</th>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-text-secondary uppercase">考试方式</th>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-text-secondary uppercase">课程性质</th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-border-light">
+                          {trainingProgramCourses.slice(0, 10).map((course, index) => (
+                            <tr key={course.id} className="hover:bg-gray-50">
+                              <td className="px-4 py-2 text-sm text-text-primary">{course.course_number}</td>
+                              <td className="px-4 py-2 text-sm text-text-primary">{course.course_name}</td>
+                              <td className="px-4 py-2 text-sm text-text-primary">{course.credits}</td>
+                              <td className="px-4 py-2 text-sm text-text-primary">{course.recommended_grade}</td>
+                              <td className="px-4 py-2 text-sm text-text-primary">{course.semester}</td>
+                              <td className="px-4 py-2 text-sm text-text-primary">{course.exam_method}</td>
+                              <td className="px-4 py-2 text-sm text-text-primary">{course.course_nature}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      {trainingProgramCourses.length > 10 && (
+                        <div className="p-3 text-center text-sm text-text-secondary bg-gray-50">
+                          显示前 10 条，共 {trainingProgramCourses.length} 条记录
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* 导入结果显示 */}
+                {trainingProgramImportResult && (
+                  <div className="mt-4 p-4 bg-green-50 rounded-lg">
+                    <h4 className="font-medium text-green-900 mb-2">导入结果</h4>
+                    <div className="text-sm text-green-700">
+                      <p>✅ 成功导入: {trainingProgramImportResult.success} 条</p>
+                      {trainingProgramImportResult.failed > 0 && (
+                        <p>❌ 导入失败: {trainingProgramImportResult.failed} 条</p>
+                      )}
+                      <p>📊 总计: {trainingProgramImportResult.total} 条</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              <div className="p-6 border-t border-border-light flex justify-end space-x-3">
+                <button 
+                  onClick={handleTrainingProgramModalClose}
+                  className="px-4 py-2 border border-border-light rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  取消
+                </button>
+                <button 
+                  onClick={handleTrainingProgramImport}
+                  disabled={trainingProgramCourses.length === 0 || trainingProgramImporting}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:bg-gray-300"
+                >
+                  {trainingProgramImporting ? '导入中...' : `确认导入 (${trainingProgramCourses.length})`}
                 </button>
               </div>
             </div>
