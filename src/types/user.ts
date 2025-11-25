@@ -49,26 +49,7 @@ export interface UserListResponse {
   total_pages: number
 }
 
-export interface BatchImport {
-  id: string
-  filename: string
-  total_rows: number
-  success_rows: number
-  failed_rows: number
-  status: 'pending' | 'processing' | 'completed' | 'failed'
-  created_by: string
-  created_at: string
-  completed_at?: string
-}
 
-export interface ImportFailure {
-  id: string
-  import_id: string
-  row_number: number
-  error_message: string
-  raw_data: string
-  created_at: string
-}
 
 // ==================== 学生个人信息相关类型 ====================
 export interface StudentProfile {

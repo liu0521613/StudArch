@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import styles from './styles.module.css';
 import { UserService } from '../../services/userService';
 import { UserWithRole } from '../../types/user';
-import { demoAuthorizedStudents, demoTeacherStudents } from '../../data/demoData';
 
 const TeacherStudentList: React.FC = () => {
   const navigate = useNavigate();
@@ -47,61 +46,8 @@ const TeacherStudentList: React.FC = () => {
       setStudentsTotal(result.total);
     } catch (error) {
       console.error('获取教师学生列表失败:', error);
-      // 使用演示数据作为fallback，确保只显示学生角色
-      // 这里应该显示当前教师管理的学生，包括新导入的
-      let filteredStudents = demoTeacherStudents.filter(student => 
-        student.role_id === '3' && student.status === 'active'
-      );
-      
-      // 从localStorage读取已导入的学生ID
-      const savedImportedIds = localStorage.getItem('importedStudentIds');
-      let importedIds: Set<string> = new Set();
-      
-      if (savedImportedIds) {
-        try {
-          const parsedIds = JSON.parse(savedImportedIds);
-          importedIds = new Set(parsedIds);
-          console.log('从localStorage恢复的导入学生ID:', Array.from(importedIds));
-        } catch (e) {
-          console.error('解析localStorage中的导入学生ID失败:', e);
-        }
-      }
-      
-      // 获取已导入的学生（不管是否在基础列表中，确保包含所有导入的学生）
-      const importedStudents = demoAuthorizedStudents.filter(student => 
-        importedIds.has(student.id)
-      );
-      
-      console.log('找到的已导入学生数量:', importedStudents.length);
-      console.log('已导入学生:', importedStudents.map(s => ({ id: s.id, name: s.full_name })));
-      
-      // 合并基础学生和已导入的学生，避免重复
-      const existingIds = new Set(filteredStudents.map(s => s.id));
-      const newImportedStudents = importedStudents.filter(student => !existingIds.has(student.id));
-      
-      if (newImportedStudents.length > 0) {
-        console.log('新增导入学生:', newImportedStudents.map(s => ({ id: s.id, name: s.full_name })));
-        filteredStudents = [...filteredStudents, ...newImportedStudents];
-      }
-      
-      if (searchTerm) {
-        const searchTermLower = searchTerm.toLowerCase();
-        filteredStudents = filteredStudents.filter(student => 
-          student.full_name.toLowerCase().includes(searchTermLower) ||
-          student.user_number.toLowerCase().includes(searchTermLower) ||
-          student.department?.toLowerCase().includes(searchTermLower) ||
-          student.class_name?.toLowerCase().includes(searchTermLower)
-        );
-        console.log('搜索过滤后的学生数量:', filteredStudents.length);
-      }
-      
-      // 分页处理
-      const startIndex = (currentPage - 1) * pageSize;
-      const endIndex = startIndex + pageSize;
-      const paginatedStudents = filteredStudents.slice(startIndex, endIndex);
-      
-      setStudentsData(paginatedStudents);
-      setStudentsTotal(filteredStudents.length);
+      setStudentsData([]);
+      setStudentsTotal(0);
     } finally {
       setStudentsLoading(false);
     }
@@ -123,50 +69,8 @@ const TeacherStudentList: React.FC = () => {
       setImportTotalCount(result.total);
     } catch (error) {
       console.error('获取可导入学生失败:', error);
-      // 使用演示数据，但需要过滤掉已导入的学生
-      let filteredStudents = demoAuthorizedStudents.filter(student => 
-        student.role_id === '3' && student.status === 'active'
-      );
-      
-      // 获取当前教师已导入的学生ID（从localStorage获取）
-      const savedImportedIds = localStorage.getItem('importedStudentIds');
-      const importedStudentIds = new Set<string>();
-      
-      if (savedImportedIds) {
-        try {
-          const parsedIds = JSON.parse(savedImportedIds);
-          parsedIds.forEach((id: string) => importedStudentIds.add(id));
-        } catch (e) {
-          console.error('解析localStorage中的导入学生ID失败:', e);
-        }
-      }
-      
-      // 同时添加演示数据中已固定的学生
-      demoTeacherStudents.forEach(s => importedStudentIds.add(s.id));
-      
-      // 过滤掉已导入的学生
-      filteredStudents = filteredStudents.filter(student => 
-        !importedStudentIds.has(student.id)
-      );
-      
-      if (importSearchTerm) {
-        const searchTermLower = importSearchTerm.toLowerCase();
-        filteredStudents = filteredStudents.filter(student => 
-          student.full_name.toLowerCase().includes(searchTermLower) ||
-          student.user_number.toLowerCase().includes(searchTermLower) ||
-          student.email.toLowerCase().includes(searchTermLower) ||
-          student.department?.toLowerCase().includes(searchTermLower) ||
-          student.class_name?.toLowerCase().includes(searchTermLower)
-        );
-      }
-      
-      // 分页处理
-      const startIndex = (importPage - 1) * 20;
-      const endIndex = startIndex + 20;
-      const paginatedStudents = filteredStudents.slice(startIndex, endIndex);
-      
-      setAvailableStudents(paginatedStudents);
-      setImportTotalCount(filteredStudents.length);
+      setAvailableStudents([]);
+      setImportTotalCount(0);
     } finally {
       setImportLoading(false);
     }
@@ -175,29 +79,13 @@ const TeacherStudentList: React.FC = () => {
   // 当导入模态框打开时获取可用学生
   useEffect(() => {
     if (isImportModalOpen) {
-      // 调试导入状态
-      debugImportState();
       fetchAvailableStudents();
     }
   }, [isImportModalOpen, importSearchTerm, importPage]);
 
   // 页面加载时获取教师学生数据
   useEffect(() => {
-    // 从localStorage恢复已导入的学生ID
-    const savedImportedIds = localStorage.getItem('importedStudentIds');
-    if (savedImportedIds) {
-      try {
-        const parsedIds = JSON.parse(savedImportedIds);
-        setSelectedAvailableStudents(new Set(parsedIds));
-      } catch (e) {
-        console.error('解析localStorage中的导入学生ID失败:', e);
-      }
-    }
-    
     fetchTeacherStudents();
-    
-    // 调试：打印导入状态
-    setTimeout(() => debugImportState(), 1000);
   }, [searchTerm, currentPage, pageSize]);
 
   // 当筛选条件改变时，重新获取数据
@@ -297,20 +185,7 @@ const TeacherStudentList: React.FC = () => {
     setEditingStudent(null);
   };
 
-  // 调试函数：查看当前导入状态
-  const debugImportState = () => {
-    const savedImportedIds = localStorage.getItem('importedStudentIds');
-    console.log('=== 导入状态调试 ===');
-    console.log('localStorage中的导入ID:', savedImportedIds);
-    if (savedImportedIds) {
-      const parsed = JSON.parse(savedImportedIds);
-      console.log('已导入的学生ID列表:', parsed);
-      const importedStudents = demoAuthorizedStudents.filter(s => parsed.includes(s.id));
-      console.log('已导入的学生详情:', importedStudents.map(s => ({ id: s.id, name: s.full_name })));
-    }
-    console.log('教师基础学生:', demoTeacherStudents.map(s => ({ id: s.id, name: s.full_name })));
-    console.log('==================');
-  };
+
 
   const handleBatchDelete = async () => {
     if (selectedStudents.size === 0) {
@@ -426,52 +301,11 @@ const TeacherStudentList: React.FC = () => {
         setImportSearchTerm('');
         setImportPage(1);
       } else {
-        alert('导入失败，请检查学生信息是否正确');
+        alert(`导入失败：${result.error || '未知错误'}`);
       }
     } catch (error) {
       console.error('批量导入失败:', error);
-      
-      // 检查各种错误条件，直接进入演示模式
-      console.log('启用演示模式处理导入');
-      
-      // 将选中的学生添加到当前学生列表
-      const newStudents = demoAuthorizedStudents.filter(student => 
-        selectedAvailableStudents.has(student.id)
-      );
-      
-      // 获取当前已保存的导入学生ID
-      const savedImportedIds = localStorage.getItem('importedStudentIds');
-      const existingImportedIds: string[] = savedImportedIds ? JSON.parse(savedImportedIds) : [];
-      
-      // 合并新导入的学生ID，避免重复
-      const newImportedIds = Array.from(selectedAvailableStudents);
-      const allImportedIds = [...new Set([...existingImportedIds, ...newImportedIds])];
-      
-      // 保存到localStorage以确保持久化
-      localStorage.setItem('importedStudentIds', JSON.stringify(allImportedIds));
-      
-      console.log('保存的导入学生ID:', allImportedIds);
-      
-      // 调试：检查导入状态
-      setTimeout(() => debugImportState(), 500);
-      
-      // 添加到当前学生列表
-      setStudentsData(prev => [...prev, ...newStudents]);
-      setStudentsTotal(prev => prev + newStudents.length);
-      
-      alert(`演示模式：成功导入 ${selectedAvailableStudents.size} 个学生到您的管理列表`);
-      
-      // 关闭模态框并重置状态
-      setIsImportModalOpen(false);
-      setSelectedAvailableStudents(new Set());
-      setImportSearchTerm('');
-      setImportPage(1);
-      
-      // 强制刷新一下页面状态
-      setTimeout(() => {
-        fetchTeacherStudents();
-      }, 100);
-      
+      alert(`导入失败：${error instanceof Error ? error.message : '未知错误'}`);
     } finally {
       setImportLoading(false);
     }
@@ -615,15 +449,6 @@ const TeacherStudentList: React.FC = () => {
               </nav>
             </div>
             <div className="flex space-x-3">
-              {/* 临时调试按钮 */}
-              <button 
-                onClick={debugImportState}
-                className="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors flex items-center space-x-2"
-                title="调试导入状态"
-              >
-                <i className="fas fa-bug"></i>
-                <span>调试</span>
-              </button>
               <button 
                 onClick={() => setIsImportModalOpen(true)}
                 className="px-4 py-2 bg-white border border-border-light rounded-lg hover:bg-gray-50 transition-colors flex items-center space-x-2"

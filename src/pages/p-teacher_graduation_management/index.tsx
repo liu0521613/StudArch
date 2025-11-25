@@ -260,12 +260,36 @@ const TeacherGraduationManagement: React.FC = () => {
           }
 
           console.log('Excel原始数据:', jsonData);
+          console.log('Excel数据行数:', jsonData.length);
 
           // 处理数据，跳过说明行
           const importData: any[] = [];
           let foundDataStart = false;
+          let headerRowIndex = -1;
           
+          // 先找到表头行
           for (let i = 0; i < jsonData.length; i++) {
+            const row = jsonData[i] as any[];
+            if (row && row.length > 0) {
+              const firstCell = String(row[0] || '').trim();
+              if (firstCell === '学号' || firstCell.includes('学号')) {
+                headerRowIndex = i;
+                foundDataStart = true;
+                console.log('找到表头行，索引:', i);
+                break;
+              }
+            }
+          }
+          
+          // 如果没有找到表头，尝试从第一行开始
+          if (headerRowIndex === -1) {
+            headerRowIndex = 0;
+            foundDataStart = true;
+            console.log('未找到表头行，从第一行开始解析');
+          }
+          
+          // 从表头行之后开始处理数据
+          for (let i = headerRowIndex + 1; i < jsonData.length; i++) {
             const row = jsonData[i] as any[];
             
             // 跳过空行
@@ -275,83 +299,79 @@ const TeacherGraduationManagement: React.FC = () => {
             
             const firstCell = String(row[0] || '').trim();
             
-            // 跳过说明行
+            // 跳过说明行和标题行
             if (firstCell === '说明' || 
                 firstCell === '去向类型可选值：' ||
-                firstCell.startsWith('employment') ||
-                firstCell.startsWith('furtherstudy') ||
-                firstCell.startsWith('abroad') ||
-                firstCell.startsWith('entrepreneurship') ||
-                firstCell.startsWith('unemployed') ||
-                firstCell.startsWith('other')) {
+                firstCell === '示例数据（请按格式填写）：' ||
+                firstCell.startsWith('employment -') ||
+                firstCell.startsWith('furtherstudy -') ||
+                firstCell.startsWith('abroad -') ||
+                firstCell.startsWith('entrepreneurship -') ||
+                firstCell.startsWith('unemployed -') ||
+                firstCell.startsWith('other -')) {
               continue;
             }
             
-            // 跳过示例标题行
-            if (firstCell === '示例数据（请按格式填写）：') {
-              foundDataStart = true;
+            // 检查是否是有效的学号（数字格式，至少4位）
+            const isStudentNumber = /^\d{4,}$/.test(firstCell);
+            
+            if (!isStudentNumber) {
+              console.log(`第${i + 1}行不是有效的学号格式: ${firstCell}，跳过`);
               continue;
             }
             
-            // 跳过表头行
-            if (firstCell === '学号') {
-              foundDataStart = true;
+            // 验证必需字段
+            if (!firstCell || !row[1]) {
+              console.warn(`第${i + 1}行缺少必需字段（学号或去向类型），跳过`);
               continue;
             }
             
-            // 如果找到了数据开始标记或者是有效的学号格式，则处理这行数据
-            if (foundDataStart || (firstCell && /^\d{4,}$/.test(firstCell))) {
-              // 验证必需字段
-              if (!firstCell || !row[1]) {
-                console.warn(`第${i + 1}行缺少必需字段（学号或去向类型），跳过`);
-                continue;
-              }
-              
-              // 验证去向类型是否有效
-              const validTypes = ['employment', 'furtherstudy', 'abroad', 'entrepreneurship', 'unemployed', 'other', '就业', '升学', '出国', '创业', '待业', '其他'];
-              const destinationType = String(row[1] || '').trim();
-              
-              if (!validTypes.includes(destinationType)) {
-                console.warn(`第${i + 1}行去向类型无效: ${destinationType}，跳过`);
-                continue;
-              }
-              
-              // 标准化去向类型为英文
-              let normalizedType = destinationType;
-              const typeMapping: Record<string, string> = {
-                '就业': 'employment',
-                '升学': 'furtherstudy', 
-                '出国': 'abroad',
-                '创业': 'entrepreneurship',
-                '待业': 'unemployed',
-                '其他': 'other'
-              };
-              
-              if (typeMapping[destinationType]) {
-                normalizedType = typeMapping[destinationType];
-              }
-              
-              importData.push({
-                student_number: firstCell,
-                destination_type: normalizedType,
-                company_name: String(row[2] || '').trim(),
-                position: String(row[3] || '').trim(),
-                salary: row[4] ? String(row[4]).trim() : '',
-                work_location: String(row[5] || '').trim(),
-                school_name: String(row[6] || '').trim(),
-                major: String(row[7] || '').trim(),
-                degree: String(row[8] || '').trim(),
-                abroad_country: String(row[9] || '').trim(),
-                startup_name: String(row[10] || '').trim(),
-                startup_role: String(row[11] || '').trim(),
-                other_description: String(row[12] || '').trim()
-              });
-              
-              foundDataStart = true;
+            // 验证去向类型是否有效
+            const validTypes = ['employment', 'furtherstudy', 'abroad', 'entrepreneurship', 'unemployed', 'other', '就业', '升学', '出国', '创业', '待业', '其他'];
+            const destinationType = String(row[1] || '').trim();
+            
+            if (!validTypes.includes(destinationType)) {
+              console.warn(`第${i + 1}行去向类型无效: ${destinationType}，跳过`);
+              continue;
             }
+            
+            // 标准化去向类型为英文
+            let normalizedType = destinationType;
+            const typeMapping: Record<string, string> = {
+              '就业': 'employment',
+              '升学': 'furtherstudy', 
+              '出国': 'abroad',
+              '创业': 'entrepreneurship',
+              '待业': 'unemployed',
+              '其他': 'other'
+            };
+            
+            if (typeMapping[destinationType]) {
+              normalizedType = typeMapping[destinationType];
+            }
+            
+            const importRow = {
+              student_number: firstCell,
+              destination_type: normalizedType,
+              company_name: String(row[2] || '').trim(),
+              position: String(row[3] || '').trim(),
+              salary: row[4] ? String(row[4]).trim() : '',
+              work_location: String(row[5] || '').trim(),
+              school_name: String(row[6] || '').trim(),
+              major: String(row[7] || '').trim(),
+              degree: String(row[8] || '').trim(),
+              abroad_country: String(row[9] || '').trim(),
+              startup_name: String(row[10] || '').trim(),
+              startup_role: String(row[11] || '').trim(),
+              other_description: String(row[12] || '').trim()
+            };
+            
+            console.log(`解析第${i + 1}行数据:`, importRow);
+            importData.push(importRow);
           }
 
           console.log('处理后的导入数据:', importData);
+          console.log('有效数据条数:', importData.length);
 
           if (importData.length === 0) {
             alert('Excel文件中没有找到有效的导入数据。请检查文件格式是否正确，确保数据行包含有效的学号和去向类型。');
@@ -361,17 +381,36 @@ const TeacherGraduationManagement: React.FC = () => {
 
           // 执行批量导入
           const batchName = `毕业去向导入_${new Date().toLocaleString('zh-CN')}`;
-          const result = await GraduationDestinationService.batchImportGraduationDestinations(
-            batchName,
-            selectedFile.name,
-            importData
-          );
+          console.log('开始执行批量导入，数据条数:', importData.length);
+          
+          try {
+            const result = await GraduationDestinationService.batchImportGraduationDestinations(
+              batchName,
+              selectedFile.name,
+              importData
+            );
 
-          alert(`导入完成！成功 ${result.success_count} 条，失败 ${result.failed_count} 条${result.failed_count > 0 ? '，请查看导入历史了解详细错误信息' : ''}`);
-          setShowBatchImportModal(false);
-          setSelectedFile(null);
-          loadGraduationData();
-          loadImportBatches();
+            console.log('导入结果:', result);
+            
+            let message = `导入完成！\n总记录数: ${result.total_records}\n成功: ${result.success_count} 条\n失败: ${result.failure_count} 条`;
+            
+            if (result.failure_count > 0) {
+              message += '\n\n请查看导入历史了解详细错误信息。';
+            }
+            
+            if (result.success_count === 0 && result.failure_count === 0) {
+              message += '\n\n注意：没有数据被处理，请检查Excel文件格式是否正确。';
+            }
+            
+            alert(message);
+            setShowBatchImportModal(false);
+            setSelectedFile(null);
+            loadGraduationData();
+            loadImportBatches();
+          } catch (error) {
+            console.error('批量导入异常:', error);
+            alert(`导入失败: ${error instanceof Error ? error.message : '未知错误'}\n\n请检查控制台查看详细错误信息。`);
+          }
         } catch (error) {
           console.error('处理Excel文件失败:', error);
           let errorMessage = '处理Excel文件失败，请检查文件格式是否正确';
@@ -500,15 +539,15 @@ const TeacherGraduationManagement: React.FC = () => {
             <div className="space-y-2">
               <div className="flex justify-between">
                 <span className="text-text-secondary">学号：</span>
-                <span className="text-text-primary">{data.student?.student_number}</span>
+                <span className="text-text-primary">{data.student?.student_id}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-text-secondary">姓名：</span>
-                <span className="text-text-primary">{data.student?.full_name}</span>
+                <span className="text-text-primary">{data.student?.student_name}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-text-secondary">班级：</span>
-                <span className="text-text-primary">{data.student?.class_name}</span>
+                <span className="text-text-primary">{data.student?.class_info}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-text-secondary">去向类型：</span>
@@ -741,15 +780,15 @@ const TeacherGraduationManagement: React.FC = () => {
       <div className="space-y-4">
         <div className="flex justify-between">
           <span className="text-text-secondary">学号：</span>
-          <span className="text-text-primary">{data.student?.student_number}</span>
+          <span className="text-text-primary">{data.student?.student_id}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-text-secondary">姓名：</span>
-          <span className="text-text-primary">{data.student?.full_name}</span>
+          <span className="text-text-primary">{data.student?.student_name}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-text-secondary">班级：</span>
-          <span className="text-text-primary">{data.student?.class_name}</span>
+          <span className="text-text-primary">{data.student?.class_info}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-text-secondary">去向类型：</span>
@@ -1008,7 +1047,7 @@ const TeacherGraduationManagement: React.FC = () => {
                         className="rounded border-border-light"
                       />
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">{record.student?.student_number}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">{record.student?.student_id}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <img 
@@ -1016,10 +1055,10 @@ const TeacherGraduationManagement: React.FC = () => {
                           src={`https://s.coze.cn/image/default_avatar/`}
                           alt="学生头像"
                         />
-                        <span className="font-medium text-text-primary">{record.student?.full_name}</span>
+                        <span className="font-medium text-text-primary">{record.student?.student_name}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">{record.student?.class_name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">{record.student?.class_info}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 py-1 text-xs font-medium ${styles[`type${record.destination_type.charAt(0).toUpperCase() + record.destination_type.slice(1)}`]} rounded-full`}>
                         {getDestinationTypeText(record.destination_type)}
@@ -1148,7 +1187,7 @@ const TeacherGraduationManagement: React.FC = () => {
                             <div className="flex-1">
                               <div className="text-text-primary font-medium">{batch.batch_name}</div>
                               <div className="text-text-secondary text-xs">
-                                {batch.success_count}成功 {batch.failed_count}失败
+                                {batch.success_count}成功 {batch.failure_count}失败
                               </div>
                             </div>
                             <div className="text-text-secondary text-xs">
@@ -1297,7 +1336,7 @@ const TeacherGraduationManagement: React.FC = () => {
                               导入时间：{new Date(batch.created_at).toLocaleString('zh-CN')}
                             </p>
                             <p className="text-sm text-text-secondary">
-                              文件名：{batch.filename || '无'}
+                              文件名：{batch.import_file_path || '无'}
                             </p>
                           </div>
                           <div className={`px-3 py-1 text-xs font-medium rounded-full ${
@@ -1311,7 +1350,7 @@ const TeacherGraduationManagement: React.FC = () => {
                         </div>
                         <div className="grid grid-cols-3 gap-4 text-sm">
                           <div className="text-center p-3 bg-blue-50 rounded">
-                            <div className="text-2xl font-bold text-blue-600">{batch.total_count}</div>
+                            <div className="text-2xl font-bold text-blue-600">{batch.total_records}</div>
                             <div className="text-text-secondary">总记录数</div>
                           </div>
                           <div className="text-center p-3 bg-green-50 rounded">
@@ -1319,7 +1358,7 @@ const TeacherGraduationManagement: React.FC = () => {
                             <div className="text-text-secondary">成功导入</div>
                           </div>
                           <div className="text-center p-3 bg-red-50 rounded">
-                            <div className="text-2xl font-bold text-red-600">{batch.failed_count}</div>
+                            <div className="text-2xl font-bold text-red-600">{batch.failure_count}</div>
                             <div className="text-text-secondary">导入失败</div>
                           </div>
                         </div>

@@ -1,0 +1,19 @@
+        let message = `⚠️ 部分删除完成
+
+✅ 成功删除: ${successCount} 个
+❌ 删除失败: ${failedCount} 个
+
+失败详情:
+${errorDetails}${moreErrors}`;
+        alert(message);
+      } else {
+        let message = `❌ 删除失败，共 ${failedCount} 个学生删除失败
+
+${errors.slice(0, 2).join('\n')}`;
+        alert(message);
+      }
+    } catch (error) {
+      console.error('批量删除学生失败:', error);
+      alert('批量删除操作失败，请稍后重试');
+    }
+  };

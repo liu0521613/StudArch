@@ -1,0 +1,9 @@
+        alert(`✅ 成功删除 ${successCount} 个学生`);
+      } else if (successCount > 0 && failedCount > 0) {
+        const errorDetails = errors.slice(0, 3).join('\n');
+        const moreErrors = errors.length > 3 ? `\n...还有 ${errors.length - 3} 个错误` : '';
+        let message = `⚠️ 部分删除完成\n\n✅ 成功删除: ${successCount} 个\n❌ 删除失败: ${failedCount} 个\n\n失败详情:\n${errorDetails}${moreErrors}`;
+        alert(message);
+      } else {
+        let message = `❌ 删除失败，共 ${failedCount} 个学生删除失败\n\n${errors.slice(0, 2).join('\n')}`;
+        alert(message);
