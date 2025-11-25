@@ -613,6 +613,13 @@ const TeacherStudentList: React.FC = () => {
                       >
                         <i className="fas fa-eye"></i>
                       </Link>
+                      <Link 
+                        to={`/teacher-student-detail?studentId=${student.id}#rewards`}
+                        className="text-orange-500 hover:text-orange-700 transition-colors" 
+                        title="奖惩记录"
+                      >
+                        <i className="fas fa-trophy"></i>
+                      </Link>
                       <button 
                         onClick={() => handleEditStudent(student)}
                         className="text-text-secondary hover:text-secondary transition-colors" 

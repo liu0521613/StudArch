@@ -3,6 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import styles from './styles.module.css';
+import { RewardPunishmentService } from '../../services/rewardPunishmentService';
+import { RewardPunishment, RewardPunishmentCreate, RewardPunishmentUpdate } from '../../types/rewardPunishment';
+import RewardPunishmentForm from '../../components/RewardPunishmentForm';
 
 interface StudentData {
   id: string;
@@ -34,7 +37,7 @@ interface StudentData {
 const TeacherStudentDetail: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const studentId = searchParams.get('studentId') || '2021001';
+  const studentId = searchParams.get('studentId');
 
   // 状态管理
   const [activeTab, setActiveTab] = useState<string>('basic');
@@ -44,14 +47,24 @@ const TeacherStudentDetail: React.FC = () => {
   const [showEditGraduationModal, setShowEditGraduationModal] = useState<boolean>(false);
   const [destinationType, setDestinationType] = useState<string>('employment');
   const [rewardType, setRewardType] = useState<string>('reward');
+  
+  // 奖惩信息相关状态
+  const [rewardPunishments, setRewardPunishments] = useState<RewardPunishment[]>([]);
+  const [rewardPunishmentLoading, setRewardPunishmentLoading] = useState<boolean>(false);
+  const [editingRewardPunishment, setEditingRewardPunishment] = useState<RewardPunishment | null>(null);
+  const [showDeleteRewardModal, setShowDeleteRewardModal] = useState<boolean>(false);
+  const [deleteRewardId, setDeleteRewardId] = useState<string>('');
+  const [rewardFilters, setRewardFilters] = useState({
+    type: undefined as 'reward' | 'punishment' | undefined
+  });
 
   // 学生数据
   const [studentData] = useState<StudentData>({
-    id: studentId,
+    id: studentId || 'unknown',
     name: '李小明',
     avatar: 'https://s.coze.cn/image/vdcOni23j40/',
     status: '在读',
-    studentId: '2021001',
+    studentId: studentId || '未知',
     gender: '男',
     birthDate: '2003年5月15日',
     nationality: '汉族',
@@ -73,12 +86,47 @@ const TeacherStudentDetail: React.FC = () => {
     entranceDate: '2021年9月1日'
   });
 
-  // 设置页面标题
+  // 检查 studentId 是否存在
+  useEffect(() => {
+    if (!studentId) {
+      console.error('学生ID缺失，请通过学生列表页面访问');
+    }
+  }, [studentId]);
+
+  // 加载奖惩信息
+  const loadRewardPunishments = async () => {
+    try {
+      if (!studentId) {
+        setRewardPunishments([]);
+        return;
+      }
+      
+      setRewardPunishmentLoading(true);
+      const result = await RewardPunishmentService.getStudentRewardPunishments(
+        studentId, 
+        rewardFilters
+      );
+      setRewardPunishments(result.items);
+    } catch (error) {
+      console.error('加载奖惩信息失败:', error);
+      setRewardPunishments([]);
+    } finally {
+      setRewardPunishmentLoading(false);
+    }
+  };
+
+  // 设置页面标题和初始加载数据
   useEffect(() => {
     const originalTitle = document.title;
     document.title = '学生档案详情 - 学档通';
+    loadRewardPunishments();
     return () => { document.title = originalTitle; };
-  }, []);
+  }, [studentId]);
+
+  // 当奖惩筛选条件改变时重新加载数据
+  useEffect(() => {
+    loadRewardPunishments();
+  }, [rewardFilters]);
 
   // 标签页切换
   const handleTabChange = (tabId: string) => {
@@ -120,13 +168,103 @@ const TeacherStudentDetail: React.FC = () => {
 
   // 新增奖惩
   const handleAddReward = () => {
+    setEditingRewardPunishment(null);
     showModal(setShowAddRewardModal);
   };
 
-  const handleSaveReward = () => {
-    console.log('保存奖惩信息');
-    hideModal(setShowAddRewardModal);
-    alert('奖惩信息已添加');
+  const handleSaveReward = async (formData: Partial<RewardPunishmentCreate>) => {
+    try {
+      console.log('🔍 开始保存奖惩信息...');
+      console.log('📝 学生ID:', studentId);
+      console.log('📝 表单数据:', formData);
+      
+      if (!studentId) {
+        console.error('❌ 学生ID缺失');
+        alert('学生ID缺失，无法保存奖惩信息');
+        return;
+      }
+
+      // 验证UUID格式
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(studentId)) {
+        console.error('❌ 学生ID格式无效:', studentId);
+        alert('学生ID格式无效，请检查URL参数');
+        return;
+      }
+
+      const rewardData: RewardPunishmentCreate = {
+        student_id: studentId,
+        type: formData.type || 'reward',
+        name: formData.name || '',
+        level: 'school', // 设置默认值，因为数据库字段是必需的
+        category: formData.category,
+        description: formData.description || '',
+        date: formData.date || new Date().toISOString().split('T')[0],
+        created_by: 'teacher001' // 实际项目中应该从认证状态获取
+      };
+
+      console.log('📦 准备保存的数据:', rewardData);
+
+      if (editingRewardPunishment) {
+        // 编辑模式
+        console.log('🔧 编辑模式，ID:', editingRewardPunishment.id);
+        await RewardPunishmentService.updateRewardPunishment(
+          editingRewardPunishment.id,
+          formData as RewardPunishmentUpdate
+        );
+        console.log('✅ 更新成功');
+        alert('奖惩信息已更新');
+      } else {
+        // 新增模式
+        console.log('➕ 新增模式');
+        const result = await RewardPunishmentService.createRewardPunishment(rewardData);
+        console.log('✅ 创建成功:', result);
+        alert('奖惩信息已添加');
+      }
+
+      hideModal(setShowAddRewardModal);
+      setEditingRewardPunishment(null);
+      loadRewardPunishments(); // 重新加载数据
+    } catch (error) {
+      console.error('❌ 保存奖惩信息失败:', error);
+      console.error('❌ 错误详情:', error instanceof Error ? error.message : '未知错误');
+      alert(`保存失败: ${error instanceof Error ? error.message : '未知错误'}`);
+    }
+  };
+
+  // 编辑奖惩
+  const handleEditReward = (reward: RewardPunishment) => {
+    setEditingRewardPunishment(reward);
+    setRewardType(reward.type);
+    showModal(setShowAddRewardModal);
+  };
+
+  // 删除奖惩
+  const handleDeleteReward = (id: string) => {
+    setDeleteRewardId(id);
+    showModal(setShowDeleteRewardModal);
+  };
+
+  const handleConfirmDeleteReward = async () => {
+    try {
+      await RewardPunishmentService.deleteRewardPunishment(deleteRewardId);
+      alert('奖惩信息已删除');
+      hideModal(setShowDeleteRewardModal);
+      setDeleteRewardId('');
+      loadRewardPunishments(); // 重新加载数据
+    } catch (error) {
+      console.error('删除奖惩信息失败:', error);
+      alert('删除失败，请重试');
+    }
+  };
+
+  // 筛选奖惩信息
+  const handleRewardFilterChange = (filterType: string, value: any) => {
+    setRewardPunishmentLoading(prev => prev);
+    setRewardFilters(prev => ({
+      ...prev,
+      [filterType]: value || undefined
+    }));
   };
 
   // 编辑毕业去向
@@ -571,70 +709,200 @@ const TeacherStudentDetail: React.FC = () => {
                 <i className="fas fa-plus mr-2"></i>新增奖惩
               </button>
             </div>
-            
+
+            {/* 筛选条件 */}
+            <div className="flex items-center space-x-4 mb-6 p-4 bg-gray-50 rounded-lg">
+              <div className="flex items-center space-x-2">
+                <label className="text-sm text-text-secondary">类型:</label>
+                <select 
+                  value={rewardFilters.type || ''}
+                  onChange={(e) => handleRewardFilterChange('type', e.target.value)}
+                  className="px-3 py-1 text-sm border border-border-light rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary"
+                >
+                  <option value="">全部</option>
+                  <option value="reward">奖励</option>
+                  <option value="punishment">惩罚</option>
+                </select>
+              </div>
+
+
+            </div>
+
+            {/* 奖惩统计信息 */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <div className="bg-gradient-to-r from-green-50 to-green-100 border border-green-200 rounded-lg p-4 text-center">
+                <div className="flex items-center justify-center mb-2">
+                  <i className="fas fa-trophy text-green-600 text-2xl"></i>
+                </div>
+                <div className="text-2xl font-bold text-green-800">
+                  {rewardPunishments.filter(r => r.type === 'reward').length}
+                </div>
+                <div className="text-sm text-green-600">奖励记录</div>
+              </div>
+              <div className="bg-gradient-to-r from-red-50 to-red-100 border border-red-200 rounded-lg p-4 text-center">
+                <div className="flex items-center justify-center mb-2">
+                  <i className="fas fa-exclamation-triangle text-red-600 text-2xl"></i>
+                </div>
+                <div className="text-2xl font-bold text-red-800">
+                  {rewardPunishments.filter(r => r.type === 'punishment').length}
+                </div>
+                <div className="text-sm text-red-600">惩罚记录</div>
+              </div>
+
+            </div>
+
+            {/* 奖惩列表 */}
             <div className="space-y-4">
-              {/* 奖励记录 */}
-              <div className="bg-green-50 border-l-4 border-green-400 p-4 rounded">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <i className="fas fa-trophy text-green-600"></i>
-                      <span className="font-semibold text-green-800">校级奖学金</span>
-                      <span className="px-2 py-1 text-xs bg-green-200 text-green-800 rounded">奖励</span>
-                    </div>
-                    <p className="text-sm text-green-700 mb-2">获得2021-2022学年校级一等奖学金</p>
-                    <div className="flex items-center space-x-4 text-xs text-green-600">
-                      <span><i className="fas fa-calendar mr-1"></i>2022年10月15日</span>
-                      <span><i className="fas fa-user mr-1"></i>张老师</span>
-                    </div>
+              {rewardPunishmentLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-center">
+                    <i className="fas fa-spinner fa-spin text-2xl text-secondary mb-4"></i>
+                    <p className="text-text-secondary">加载中...</p>
                   </div>
-                  <button className="text-green-600 hover:text-green-800 transition-colors">
-                    <i className="fas fa-edit"></i>
-                  </button>
                 </div>
-              </div>
-              
-              {/* 奖励记录 */}
-              <div className="bg-green-50 border-l-4 border-green-400 p-4 rounded">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <i className="fas fa-medal text-green-600"></i>
-                      <span className="font-semibold text-green-800">优秀学生干部</span>
-                      <span className="px-2 py-1 text-xs bg-green-200 text-green-800 rounded">奖励</span>
-                    </div>
-                    <p className="text-sm text-green-700 mb-2">被评为2022年度优秀学生干部</p>
-                    <div className="flex items-center space-x-4 text-xs text-green-600">
-                      <span><i className="fas fa-calendar mr-1"></i>2023年3月20日</span>
-                      <span><i className="fas fa-user mr-1"></i>张老师</span>
-                    </div>
+              ) : rewardPunishments.length === 0 ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-center">
+                    <i className="fas fa-clipboard-list text-4xl text-gray-300 mb-4"></i>
+                    <p className="text-text-secondary mb-4">暂无奖惩记录</p>
+                    <button 
+                      onClick={handleAddReward}
+                      className="px-4 py-2 bg-secondary text-white rounded-lg hover:bg-accent transition-colors"
+                    >
+                      新增奖惩
+                    </button>
                   </div>
-                  <button className="text-green-600 hover:text-green-800 transition-colors">
-                    <i className="fas fa-edit"></i>
-                  </button>
                 </div>
-              </div>
-              
-              {/* 惩罚记录 */}
-              <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <i className="fas fa-exclamation-triangle text-red-600"></i>
-                      <span className="font-semibold text-red-800">迟到警告</span>
-                      <span className="px-2 py-1 text-xs bg-red-200 text-red-800 rounded">警告</span>
+              ) : (
+                (() => {
+                  // 按年份分组
+                  const groupedRewards = rewardPunishments.reduce((groups, reward) => {
+                    const year = new Date(reward.date).getFullYear();
+                    if (!groups[year]) {
+                      groups[year] = { rewards: [], punishments: [] };
+                    }
+                    if (reward.type === 'reward') {
+                      groups[year].rewards.push(reward);
+                    } else {
+                      groups[year].punishments.push(reward);
+                    }
+                    return groups;
+                  }, {} as Record<number, { rewards: RewardPunishment[], punishments: RewardPunishment[] }>);
+
+                  // 按年份倒序排列
+                  const sortedYears = Object.keys(groupedRewards).map(Number).sort((a, b) => b - a);
+
+                  return sortedYears.map(year => (
+                    <div key={year} className="mb-6">
+                      <h5 className="text-lg font-semibold text-text-primary mb-4 flex items-center">
+                        <i className="fas fa-calendar-alt mr-2 text-secondary"></i>
+                        {year}年度
+                      </h5>
+                      
+                      {/* 奖励记录 */}
+                      {groupedRewards[year].rewards.length > 0 && (
+                        <div className="mb-4">
+                          <h6 className="text-sm font-medium text-green-700 mb-3">奖励记录</h6>
+                          <div className="space-y-3">
+                            {groupedRewards[year].rewards
+                              .map((reward) => (
+                                <div 
+                                  key={reward.id}
+                                  className="bg-green-50 border-l-4 border-green-400 p-4 rounded-lg"
+                                >
+                                  <div className="flex items-start justify-between">
+                                    <div className="flex-1">
+                                      <div className="flex items-center space-x-2 mb-2">
+                                        <i className="fas fa-trophy text-green-600"></i>
+                                        <span className="font-semibold text-green-800">{reward.name}</span>
+                                        <span className="px-2 py-1 text-xs bg-green-200 text-green-800 rounded">奖励</span>
+
+
+                                      </div>
+                                      <p className="text-sm text-green-700 mb-2">{reward.description}</p>
+                                      <div className="flex items-center space-x-4 text-xs text-green-600">
+                                        <span><i className="fas fa-calendar mr-1"></i>{reward.date}</span>
+                                        <span><i className="fas fa-user mr-1"></i>管理员</span>
+
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                      <button 
+                                        onClick={() => handleEditReward(reward)}
+                                        className="text-green-600 hover:text-green-800 transition-colors"
+                                        title="编辑"
+                                      >
+                                        <i className="fas fa-edit"></i>
+                                      </button>
+                                      <button 
+                                        onClick={() => handleDeleteReward(reward.id)}
+                                        className="text-green-600 hover:text-green-800 transition-colors"
+                                        title="删除"
+                                      >
+                                        <i className="fas fa-trash"></i>
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* 惩罚记录 */}
+                      {groupedRewards[year].punishments.length > 0 && (
+                        <div>
+                          <h6 className="text-sm font-medium text-red-700 mb-3">惩罚记录</h6>
+                          <div className="space-y-3">
+                            {groupedRewards[year].punishments
+                              .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                              .map((punishment) => (
+                                <div 
+                                  key={punishment.id}
+                                  className="bg-red-50 border-l-4 border-red-400 p-4 rounded-lg"
+                                >
+                                  <div className="flex items-start justify-between">
+                                    <div className="flex-1">
+                                      <div className="flex items-center space-x-2 mb-2">
+                                        <i className="fas fa-exclamation-triangle text-red-600"></i>
+                                        <span className="font-semibold text-red-800">{punishment.name}</span>
+                                        <span className="px-2 py-1 text-xs bg-red-200 text-red-800 rounded">惩罚</span>
+
+
+                                      </div>
+                                      <p className="text-sm text-red-700 mb-2">{punishment.description}</p>
+                                      <div className="flex items-center space-x-4 text-xs text-red-600">
+                                        <span><i className="fas fa-calendar mr-1"></i>{punishment.date}</span>
+                                        <span><i className="fas fa-user mr-1"></i>管理员</span>
+
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                      <button 
+                                        onClick={() => handleEditReward(punishment)}
+                                        className="text-red-600 hover:text-red-800 transition-colors"
+                                        title="编辑"
+                                      >
+                                        <i className="fas fa-edit"></i>
+                                      </button>
+                                      <button 
+                                        onClick={() => handleDeleteReward(punishment.id)}
+                                        className="text-red-600 hover:text-red-800 transition-colors"
+                                        title="删除"
+                                      >
+                                        <i className="fas fa-trash"></i>
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <p className="text-sm text-red-700 mb-2">因多次上课迟到，给予口头警告</p>
-                    <div className="flex items-center space-x-4 text-xs text-red-600">
-                      <span><i className="fas fa-calendar mr-1"></i>2022年12月5日</span>
-                      <span><i className="fas fa-user mr-1"></i>张老师</span>
-                    </div>
-                  </div>
-                  <button className="text-red-600 hover:text-red-800 transition-colors">
-                    <i className="fas fa-edit"></i>
-                  </button>
-                </div>
-              </div>
+                  ));
+                })()
+              )}
             </div>
           </div>
 
@@ -876,82 +1144,55 @@ const TeacherStudentDetail: React.FC = () => {
         </div>
       )}
 
-      {/* 新增奖惩模态框 */}
+      {/* 新增/编辑奖惩模态框 */}
       {showAddRewardModal && (
+        <RewardPunishmentForm
+          reward={editingRewardPunishment}
+          onSave={handleSaveReward}
+          onCancel={() => {
+            hideModal(setShowAddRewardModal);
+            setEditingRewardPunishment(null);
+          }}
+        />
+      )}
+
+      {/* 删除确认模态框 */}
+      {showDeleteRewardModal && (
         <div className="fixed inset-0 z-50">
           <div 
             className={styles.modalBackdrop}
-            onClick={() => handleModalBackdropClick(setShowAddRewardModal)}
+            onClick={() => handleModalBackdropClick(setShowDeleteRewardModal)}
           ></div>
           <div className="relative flex items-center justify-center min-h-screen p-4">
             <div className={`${styles.modalEnter} bg-white rounded-xl shadow-lg w-full max-w-md`}>
               <div className="flex items-center justify-between p-6 border-b border-border-light">
-                <h3 className="text-lg font-semibold text-text-primary">新增奖惩</h3>
+                <h3 className="text-lg font-semibold text-text-primary">确认删除</h3>
                 <button 
-                  onClick={() => hideModal(setShowAddRewardModal)}
+                  onClick={() => hideModal(setShowDeleteRewardModal)}
                   className="text-text-secondary hover:text-text-primary transition-colors"
                 >
                   <i className="fas fa-times text-xl"></i>
                 </button>
               </div>
               <div className="p-6">
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-text-primary mb-2">奖惩类型</label>
-                    <select 
-                      value={rewardType}
-                      onChange={(e) => setRewardType(e.target.value)}
-                      className="w-full px-3 py-2 border border-border-light rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary focus:border-transparent"
-                    >
-                      <option value="reward">奖励</option>
-                      <option value="punishment">惩罚</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-text-primary mb-2">奖惩名称</label>
-                    <input 
-                      type="text" 
-                      className="w-full px-3 py-2 border border-border-light rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary focus:border-transparent" 
-                      placeholder="请输入奖惩名称"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-text-primary mb-2">奖惩等级</label>
-                    <select className="w-full px-3 py-2 border border-border-light rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary focus:border-transparent">
-                      <option>校级</option>
-                      <option>省级</option>
-                      <option>国家级</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-text-primary mb-2">描述</label>
-                    <textarea 
-                      className="w-full px-3 py-2 border border-border-light rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary focus:border-transparent" 
-                      rows={3} 
-                      placeholder="请输入详细描述"
-                    ></textarea>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-text-primary mb-2">日期</label>
-                    <input 
-                      type="date" 
-                      className="w-full px-3 py-2 border border-border-light rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary focus:border-transparent"
-                    />
-                  </div>
+                <div className="text-center mb-6">
+                  <i className="fas fa-exclamation-triangle text-4xl text-yellow-500 mb-4"></i>
+                  <p className="text-text-primary">确定要删除这条奖惩记录吗？</p>
+                  <p className="text-sm text-text-secondary mt-2">此操作不可恢复</p>
                 </div>
               </div>
               <div className="flex items-center justify-end space-x-3 p-6 border-t border-border-light">
                 <button 
-                  onClick={() => hideModal(setShowAddRewardModal)}
+                  onClick={() => hideModal(setShowDeleteRewardModal)}
                   className="px-4 py-2 border border-border-light text-text-primary rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   取消
                 </button>
                 <button 
-                  onClick={handleSaveReward}
-                  className="px-4 py-2 bg-secondary text-white rounded-lg hover:bg-accent transition-colors"
+                  onClick={handleConfirmDeleteReward}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
                 >
-                  保存
+                  确认删除
                 </button>
               </div>
             </div>

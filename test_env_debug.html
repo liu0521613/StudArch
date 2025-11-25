@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>环境变量调试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .info { background-color: #d1ecf1; color: #0c5460; }
+        pre { background: #f8f9fa; padding: 15px; border-radius: 5px; overflow-x: auto; }
+        button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin: 5px; }
+        button:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
+    <h1>🔍 奖惩系统环境变量调试</h1>
+    
+    <div id="env-status" class="status info">
+        正在检查环境变量...
+    </div>
+    
+    <div id="config-status" class="status info">
+        正在检查配置...
+    </div>
+    
+    <div id="connection-status" class="status info">
+        正在测试数据库连接...
+    </div>
+    
+    <div id="test-results"></div>
+    
+    <script type="module">
+        // 模拟 Vite 的 import.meta.env
+        window.env = {
+            VITE_SUPABASE_URL: 'https://mddpbyibesqewcktlqle.supabase.co',
+            VITE_SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kZHBieWliZXNxZXdja3RscWxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMzNTQzNDksImV4cCI6MjA3ODkzMDM0OX0.T8QHCT3UK5f2mp76Oe9-AZpdrmPOFy1wVutxfmg49EU'
+        };
+        
+        // 动态加载 Supabase 客户端
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
+        script.onload = function() {
+            runTests();
+        };
+        document.head.appendChild(script);
+        
+        function runTests() {
+            const { createClient } = window.supabase_js;
+            
+            // 1. 检查环境变量
+            const envStatus = document.getElementById('env-status');
+            const supabaseUrl = window.env.VITE_SUPABASE_URL;
+            const supabaseKey = window.env.VITE_SUPABASE_ANON_KEY;
+            
+            if (supabaseUrl && supabaseKey) {
+                envStatus.className = 'status success';
+                envStatus.innerHTML = `
+                    ✅ 环境变量正常<br>
+                    URL: ${supabaseUrl.substring(0, 30)}...<br>
+                    Key: ${supabaseKey.substring(0, 30)}...
+                `;
+            } else {
+                envStatus.className = 'status error';
+                envStatus.innerHTML = '❌ 环境变量缺失';
+                return;
+            }
+            
+            // 2. 创建客户端
+            const configStatus = document.getElementById('config-status');
+            const supabase = createClient(supabaseUrl, supabaseKey);
+            
+            if (supabase) {
+                configStatus.className = 'status success';
+                configStatus.innerHTML = '✅ Supabase 客户端创建成功';
+            } else {
+                configStatus.className = 'status error';
+                configStatus.innerHTML = '❌ Supabase 客户端创建失败';
+                return;
+            }
+            
+            // 3. 测试数据库连接
+            const connectionStatus = document.getElementById('connection-status');
+            testConnection(supabase, connectionStatus);
+        }
+        
+        async function testConnection(supabase, statusElement) {
+            try {
+                // 测试 reward_punishments 表
+                const { data, error } = await supabase
+                    .from('reward_punishments')
+                    .select('count')
+                    .limit(1);
+                
+                if (error) {
+                    statusElement.className = 'status error';
+                    statusElement.innerHTML = `❌ 数据库连接失败: ${error.message}`;
+                } else {
+                    statusElement.className = 'status success';
+                    statusElement.innerHTML = '✅ 数据库连接成功';
+                    
+                    // 显示测试按钮
+                    showTestButtons(supabase);
+                }
+            } catch (err) {
+                statusElement.className = 'status error';
+                statusElement.innerHTML = `❌ 连接异常: ${err.message}`;
+            }
+        }
+        
+        function showTestButtons(supabase) {
+            const testResults = document.getElementById('test-results');
+            testResults.innerHTML = `
+                <h2>🧪 功能测试</h2>
+                <button onclick="testSave(supabase)">测试保存奖惩记录</button>
+                <button onclick="testLoad(supabase)">测试加载奖惩记录</button>
+                <div id="test-output"></div>
+            `;
+        }
+        
+        window.testSave = async function(supabase) {
+            const output = document.getElementById('test-output');
+            output.innerHTML = '<div class="status info">正在测试保存功能...</div>';
+            
+            try {
+                // 获取学生ID
+                const { data: students } = await supabase
+                    .from('student_profiles')
+                    .select('id')
+                    .limit(1);
+                
+                if (!students || students.length === 0) {
+                    output.innerHTML = '<div class="status error">❌ 没有找到学生数据</div>';
+                    return;
+                }
+                
+                const studentId = students[0].id;
+                
+                // 测试保存
+                const testData = {
+                    student_id: studentId,
+                    type: 'reward',
+                    name: '前端调试测试',
+                    level: 'school',
+                    category: '测试',
+                    description: '这是通过前端调试页面创建的测试记录',
+                    date: '2024-01-15',
+                    created_by: 'frontend-debug',
+                    status: 'pending'
+                };
+                
+                const { data, error } = await supabase
+                    .from('reward_punishments')
+                    .insert(testData)
+                    .select()
+                    .single();
+                
+                if (error) {
+                    output.innerHTML = `<div class="status error">❌ 保存失败: ${error.message}</div>`;
+                } else {
+                    output.innerHTML = `
+                        <div class="status success">✅ 保存成功！</div>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                        <button onclick="cleanup('${data.id}', supabase)">清理测试数据</button>
+                    `;
+                }
+            } catch (err) {
+                output.innerHTML = `<div class="status error">❌ 保存异常: ${err.message}</div>`;
+            }
+        };
+        
+        window.testLoad = async function(supabase) {
+            const output = document.getElementById('test-output');
+            output.innerHTML = '<div class="status info">正在测试加载功能...</div>';
+            
+            try {
+                const { data, error } = await supabase
+                    .from('reward_punishments')
+                    .select('*')
+                    .limit(5);
+                
+                if (error) {
+                    output.innerHTML = `<div class="status error">❌ 加载失败: ${error.message}</div>`;
+                } else {
+                    output.innerHTML = `
+                        <div class="status success">✅ 加载成功！找到 ${data.length} 条记录</div>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                }
+            } catch (err) {
+                output.innerHTML = `<div class="status error">❌ 加载异常: ${err.message}</div>`;
+            }
+        };
+        
+        window.cleanup = async function(id, supabase) {
+            try {
+                await supabase
+                    .from('reward_punishments')
+                    .delete()
+                    .eq('id', id);
+                
+                document.getElementById('test-output').innerHTML = 
+                    '<div class="status success">✅ 测试数据已清理</div>';
+            } catch (err) {
+                document.getElementById('test-output').innerHTML = 
+                    `<div class="status error">❌ 清理失败: ${err.message}</div>`;
+            }
+        };
+    </script>
+</body>
+</html>
