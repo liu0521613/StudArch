@@ -24,7 +24,11 @@ export class GraduationDestinationService {
     } = params || {};
 
     try {
+<<<<<<< HEAD
       // 从 graduation_destinations 表查询
+=======
+      // 先获取毕业去向数据，不进行嵌套查询
+>>>>>>> 4cbb1f17878d2f1bf30e38100118c634a24eeb64
       let query = supabase
         .from('graduation_destinations')
         .select('*', { count: 'exact' });
@@ -52,6 +56,7 @@ export class GraduationDestinationService {
         throw new Error(`获取毕业去向列表失败: ${error.message}`);
       }
 
+<<<<<<< HEAD
       const studentIds = [...new Set((data || []).map((item: any) => item.student_id).filter(Boolean))];
       
       // 批量查询学生信息
@@ -93,6 +98,56 @@ export class GraduationDestinationService {
         total: count || 0,
         page,
         limit
+=======
+      // 如果有数据，分别获取学生信息
+      if (data && data.length > 0) {
+        // 获取所有唯一的学生ID
+        const studentIds = [...new Set(data.map((item: any) => item.student_id))];
+        
+        // 获取学生信息 (使用user_number字段，但在返回时映射为student_number)
+        const { data: studentsData, error: studentsError } = await supabase
+          .from('users')
+          .select('id, user_number, full_name, class_name')  // 数据库中字段名为user_number
+          .in('id', studentIds);
+
+        if (studentsError) {
+          console.warn('获取学生信息失败:', studentsError);
+          // 即使获取学生信息失败，也返回毕业去向数据
+          return {
+            destinations: data.map((item: any) => ({
+              ...item,
+              student: null
+            })),
+            total: count || 0
+          };
+        }
+
+        // 创建学生信息映射 (将user_number映射为student_number以匹配类型定义)
+        const studentMap = studentsData?.reduce((map: Record<string, any>, student: any) => {
+          map[student.id] = {
+            student_number: student.user_number,  // 字段映射
+            full_name: student.full_name,
+            class_name: student.class_name
+          };
+          return map;
+        }, {} as Record<string, any>) || {};
+
+        // 合并数据
+        const destinations = data.map((item: any) => ({
+          ...item,
+          student: studentMap[item.student_id] || null
+        }));
+
+        return {
+          destinations,
+          total: count || 0
+        };
+      }
+
+      return {
+        destinations: [],
+        total: 0
+>>>>>>> 4cbb1f17878d2f1bf30e38100118c634a24eeb64
       };
     } catch (error) {
       console.error('获取毕业去向失败:', error);
