@@ -1067,18 +1067,7 @@ const TeacherGraduationManagement: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">{record.student?.student_id}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
-<<<<<<< HEAD
-                      <div className="flex items-center">
-                        <img 
-                          className="h-8 w-8 rounded-full mr-3" 
-                          src={`https://s.coze.cn/image/default_avatar/`}
-                          alt="学生头像"
-                        />
-                        <span className="font-medium text-text-primary">{record.student?.student_name}</span>
-                      </div>
-=======
                       <span className="font-medium text-text-primary">{record.student?.full_name}</span>
->>>>>>> 99189c3911effb11cb5198390faf752cce0c6415
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">{record.student?.class_info}</td>
                     <td className="px-6 py-4 whitespace-nowrap">

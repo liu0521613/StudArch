@@ -87,11 +87,7 @@ export class GraduationDestinationService {
     } = params;
 
     try {
-<<<<<<< HEAD
-      // 从 graduation_destinations 表查询
-=======
       // 先获取毕业去向数据，不进行嵌套查询
->>>>>>> 99189c3911effb11cb5198390faf752cce0c6415
       let query = supabase
         .from('graduation_destinations')
         .select('*', { count: 'exact' });
@@ -123,80 +119,6 @@ export class GraduationDestinationService {
         };
       }
 
-<<<<<<< HEAD
-      // 获取所有学生ID
-      const studentIds = [...new Set((data || []).map((item: any) => item.student_id).filter(Boolean))];
-      
-      // 批量查询学生信息
-      let studentsMap: Record<string, any> = {};
-      if (studentIds.length > 0) {
-        const { data: studentsData } = await supabase
-          .from('student_profiles')
-          .select('id, student_number, full_name, class_name')
-          .in('id', studentIds);
-
-        if (studentsData) {
-          studentsMap = studentsData.reduce((acc: Record<string, any>, student: any) => {
-            acc[student.id] = student;
-            return acc;
-          }, {});
-        }
-      }
-
-      // 转换数据格式
-      const destinations: GraduationDestination[] = (data || []).map((item: any) => {
-        const student = studentsMap[item.student_id] || {};
-        
-        // 关键词和班级筛选（在内存中过滤）
-        let shouldInclude = true;
-        if (keyword) {
-          const keywordLower = keyword.toLowerCase();
-          const studentNumber = (student.student_number || '').toLowerCase();
-          const studentName = (student.full_name || '').toLowerCase();
-          shouldInclude = studentNumber.includes(keywordLower) || studentName.includes(keywordLower);
-        }
-        if (class_name && shouldInclude) {
-          const className = (student.class_name || '').toLowerCase();
-          shouldInclude = className.includes(class_name.toLowerCase());
-        }
-        
-        if (!shouldInclude) {
-          return null;
-        }
-
-        return {
-          id: item.id,
-          student_id: item.student_id,
-          teacher_id: item.teacher_id,
-          destination_type: item.destination_type,
-          company_name: item.company_name || '',
-          position: item.position || '',
-          salary: item.salary ? parseFloat(item.salary.toString()) : undefined,
-          work_location: item.work_location || '',
-          school_name: item.school_name || '',
-          major: item.major || '',
-          degree: item.degree || '',
-          abroad_country: item.abroad_country || '',
-          startup_name: item.startup_name || '',
-          startup_role: item.startup_role || '',
-          other_description: item.other_description || '',
-          status: item.status || 'pending',
-          review_comment: item.review_comment || '',
-          reviewed_at: item.reviewed_at || '',
-          reviewed_by: item.reviewed_by || '',
-          proof_files: Array.isArray(item.proof_files) ? item.proof_files : (item.proof_files ? [item.proof_files] : []),
-          submit_time: item.submit_time || item.created_at || new Date().toISOString(),
-          batch_import_id: item.batch_import_id || '',
-          created_at: item.created_at || new Date().toISOString(),
-          updated_at: item.updated_at || new Date().toISOString(),
-          student: {
-            student_id: student.student_number || student.id || '',
-            student_name: student.full_name || '',
-            class_info: student.class_name || ''
-          }
-        };
-      }).filter(Boolean) as GraduationDestination[];
-=======
       // 如果有数据，分别获取学生信息
       if (data && data.length > 0) {
         // 获取所有唯一的学生ID
@@ -241,11 +163,10 @@ export class GraduationDestinationService {
           total: count || 0
         };
       }
->>>>>>> 99189c3911effb11cb5198390faf752cce0c6415
 
       return {
-        destinations,
-        total: destinations.length // 注意：这里返回的是过滤后的数量，实际总数可能需要单独查询
+        destinations: [],
+        total: 0
       };
     } catch (error) {
       console.error('获取毕业去向列表失败:', error);

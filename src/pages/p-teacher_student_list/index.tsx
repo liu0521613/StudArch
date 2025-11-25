@@ -69,8 +69,28 @@ const TeacherStudentList: React.FC = () => {
       setImportTotalCount(result.total);
     } catch (error) {
       console.error('获取可导入学生失败:', error);
-      setAvailableStudents([]);
-      setImportTotalCount(0);
+      // 如果数据库函数调用失败，使用备用方案获取所有学生
+      try {
+        const teacherId = '00000000-0000-0000-0000-000000000001'; // 重新定义teacherId
+        const allStudents = await UserService.getUsers({
+          role_id: '3', // 学生角色
+          keyword: importSearchTerm,
+          page: importPage,
+          limit: 20
+        });
+        
+        // 过滤掉已经关联的学生
+        const teacherStudents = await UserService.getTeacherStudents(teacherId);
+        const importedStudentIds = new Set(teacherStudents.students.map(s => s.id));
+        const availableStudents = allStudents.users.filter(student => !importedStudentIds.has(student.id));
+        
+        setAvailableStudents(availableStudents);
+        setImportTotalCount(allStudents.total);
+      } catch (fallbackError) {
+        console.error('备用方案也失败了:', fallbackError);
+        setAvailableStudents([]);
+        setImportTotalCount(0);
+      }
     } finally {
       setImportLoading(false);
     }
@@ -194,7 +214,15 @@ const TeacherStudentList: React.FC = () => {
     }
 
     const selectedCount = selectedStudents.size;
-    const confirmMessage = `确定要删除选中的 ${selectedCount} 个学生吗？\n\n此操作将从系统中完全删除这些学生的所有信息，包括：\n• 学生基本信息\n• 档案信息\n• 毕业去向信息\n• 关联数据\n\n此操作不可恢复！`;
+    const confirmMessage = `确定要删除选中的 ${selectedCount} 个学生吗？
+
+此操作将从系统中完全删除这些学生的所有信息，包括：
+• 学生基本信息
+• 档案信息
+• 毕业去向信息
+• 关联数据
+
+此操作不可恢复！`;
 
     if (!confirm(confirmMessage)) {
       return;
@@ -238,7 +266,13 @@ const TeacherStudentList: React.FC = () => {
       } else if (successCount > 0 && failedCount > 0) {
         const errorDetails = errors.slice(0, 3).join('\n');
         const moreErrors = errors.length > 3 ? `\n...还有 ${errors.length - 3} 个错误` : '';
-        alert(`⚠️ 部分删除完成\n\n✅ 成功删除: ${successCount} 个\n❌ 删除失败: ${failedCount} 个\n\n失败详情:\n${errorDetails}${moreErrors}`);
+        alert(`⚠️ 部分删除完成
+
+✅ 成功删除: ${successCount} 个
+❌ 删除失败: ${failedCount} 个
+
+失败详情:
+${errorDetails}${moreErrors}`);
       } else {
         alert(`❌ 删除失败，共 ${failedCount} 个学生删除失败\n\n${errors.slice(0, 2).join('\n')}`);
       }
@@ -1006,3 +1040,6 @@ const StudentForm: React.FC<StudentFormProps> = ({ student, onSave, onCancel }) 
 };
 
 export default TeacherStudentList;
+
+
+
