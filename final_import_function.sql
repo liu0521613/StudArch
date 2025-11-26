@@ -1,11 +1,11 @@
--- 简化的培养方案导入函数
--- 用于快速测试API功能
+-- 最终修复版本：解决类型转换问题
+-- 确保 UUID 字段处理正确
 
 CREATE OR REPLACE FUNCTION import_training_program_courses(
     p_courses JSONB,
     p_program_code TEXT DEFAULT 'CS_2021',
     p_batch_name TEXT DEFAULT NULL,
-    p_imported_by TEXT DEFAULT NULL
+    p_imported_by UUID DEFAULT NULL
 )
 RETURNS JSONB AS $$
 DECLARE
@@ -18,6 +18,7 @@ DECLARE
     error_message TEXT;
     row_number INTEGER := 1;
     result JSONB;
+    total_count INTEGER;
 BEGIN
     -- 获取或创建培养方案
     SELECT id INTO program_uuid 
@@ -45,6 +46,10 @@ BEGIN
         ) RETURNING id INTO program_uuid;
     END IF;
     
+    -- 计算课程数量
+    SELECT COUNT(*) INTO total_count 
+    FROM jsonb_array_elements(p_courses);
+    
     -- 创建导入批次
     INSERT INTO training_program_import_batches (
         program_id,
@@ -57,8 +62,8 @@ BEGIN
     ) VALUES (
         program_uuid,
         COALESCE(p_batch_name, '导入批次_' || to_char(NOW(), 'YYYY-MM-DD HH24:MI:SS')),
-        p_imported_by,
-        jsonb_array_length(p_courses),
+        p_imported_by,  -- 这里直接使用 UUID 类型
+        total_count,
         'processing',
         NOW(),
         NOW()

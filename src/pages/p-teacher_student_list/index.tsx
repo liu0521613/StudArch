@@ -38,6 +38,13 @@ const TeacherStudentList: React.FC = () => {
   const [trainingProgramImporting, setTrainingProgramImporting] = useState(false);
   const [trainingProgramImportResult, setTrainingProgramImportResult] = useState<TrainingProgramImportResult | null>(null);
 
+  // 培养方案分配相关状态
+  const [isAssignProgramModalOpen, setIsAssignProgramModalOpen] = useState(false);
+  const [availablePrograms, setAvailablePrograms] = useState<any[]>([]);
+  const [selectedProgram, setSelectedProgram] = useState<string>('');
+  const [assigningProgram, setAssigningProgram] = useState(false);
+  const [programsLoading, setProgramsLoading] = useState(false);
+
   // 获取教师管理的学生列表
   const fetchTeacherStudents = async () => {
     try {
@@ -364,6 +371,101 @@ ${errorDetails}${moreErrors}`);
     }
   };
 
+  // 获取可用的培养方案列表
+  const fetchAvailablePrograms = async () => {
+    try {
+      setProgramsLoading(true);
+      const response = await fetch('/api/training-programs');
+      const result = await response.json();
+      
+      if (result.success) {
+        setAvailablePrograms(result.data);
+      } else {
+        console.error('获取培养方案失败:', result.message);
+        alert('获取培养方案失败');
+      }
+    } catch (error) {
+      console.error('获取培养方案失败:', error);
+      alert('获取培养方案失败，请检查API服务器');
+    } finally {
+      setProgramsLoading(false);
+    }
+  };
+
+  // 批量分配培养方案给选中的学生
+  const handleAssignTrainingProgram = async () => {
+    if (selectedStudents.size === 0) {
+      alert('请先选择要分配培养方案的学生');
+      return;
+    }
+
+    if (!selectedProgram) {
+      alert('请选择要分配的培养方案');
+      return;
+    }
+
+    const confirmMessage = `确定要将培养方案分配给 ${selectedStudents.size} 名学生吗？`;
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    try {
+      setAssigningProgram(true);
+      // 假设当前教师的ID是固定的，实际应用中应该从认证状态中获取
+      const teacherId = '00000000-0000-0000-0000-000000000001';
+      const studentIds = Array.from(selectedStudents);
+
+      const response = await fetch(`/api/teacher/${teacherId}/batch-assign-training-program`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          programId: selectedProgram,
+          studentIds: studentIds,
+          notes: '批量分配培养方案'
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        const { success_count, failure_count, total_count } = result.data;
+        if (failure_count === 0) {
+          alert(`✅ 成功为 ${success_count} 名学生分配培养方案！`);
+        } else {
+          alert(`⚠️ 成功分配 ${success_count} 名学生，${failure_count} 名学生分配失败。详情请查看控制台。`);
+          console.log('分配详情:', result.data.details);
+        }
+        
+        // 关闭模态框并重置状态
+        setIsAssignProgramModalOpen(false);
+        setSelectedProgram('');
+        setSelectedStudents(new Set());
+        
+        // 刷新学生列表数据
+        await fetchTeacherStudents();
+      } else {
+        alert(`❌ 分配失败: ${result.message}`);
+      }
+    } catch (error) {
+      console.error('分配培养方案失败:', error);
+      alert('分配培养方案失败，请检查网络连接');
+    } finally {
+      setAssigningProgram(false);
+    }
+  };
+
+  // 打开分配培养方案模态框
+  const handleOpenAssignProgramModal = () => {
+    if (selectedStudents.size === 0) {
+      alert('请先选择要分配培养方案的学生');
+      return;
+    }
+    setIsAssignProgramModalOpen(true);
+    fetchAvailablePrograms();
+  };
+
   const handleTrainingProgramFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -647,6 +749,25 @@ ${errorDetails}${moreErrors}`);
               >
                 <i className="fas fa-file-excel"></i>
                 <span>导入培养方案</span>
+              </button>
+              
+              <button 
+                onClick={handleOpenAssignProgramModal}
+                disabled={selectedStudents.size === 0}
+                className={`px-4 py-2 rounded-lg transition-colors flex items-center space-x-2 ${
+                  selectedStudents.size > 0 
+                    ? 'bg-blue-600 text-white hover:bg-blue-700' 
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                }`}
+                title={selectedStudents.size > 0 ? `为${selectedStudents.size}名学生分配培养方案` : '请先选择学生'}
+              >
+                <i className="fas fa-graduation-cap"></i>
+                <span>分配培养方案</span>
+                {selectedStudents.size > 0 && (
+                  <span className="bg-white text-blue-600 px-2 py-0.5 rounded-full text-xs font-bold">
+                    {selectedStudents.size}
+                  </span>
+                )}
               </button>
               <button 
                 onClick={handleBatchDelete}
@@ -1160,6 +1281,146 @@ ${errorDetails}${moreErrors}`);
                   className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:bg-gray-300"
                 >
                   {trainingProgramImporting ? '导入中...' : `确认导入 (${trainingProgramCourses.length})`}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 分配培养方案模态弹窗 */}
+      {isAssignProgramModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50">
+          <div className="flex items-center justify-center min-h-screen p-4">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+              <div className="p-6 border-b border-border-light">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold text-text-primary">分配培养方案</h3>
+                    <p className="text-sm text-text-secondary mt-1">
+                      为选中的 {selectedStudents.size} 名学生分配培养方案
+                    </p>
+                  </div>
+                  <button 
+                    onClick={() => {
+                      setIsAssignProgramModalOpen(false);
+                      setSelectedProgram('');
+                    }}
+                    className="text-text-secondary hover:text-text-primary transition-colors"
+                  >
+                    <i className="fas fa-times text-xl"></i>
+                  </button>
+                </div>
+              </div>
+              
+              <div className="p-6 flex-1 overflow-hidden flex flex-col">
+                {/* 选中学生显示 */}
+                <div className="mb-4 p-4 bg-blue-50 rounded-lg">
+                  <h4 className="font-medium text-blue-900 mb-2">已选择的学生</h4>
+                  <div className="text-sm text-blue-700">
+                    共选择了 <span className="font-semibold">{selectedStudents.size}</span> 名学生
+                  </div>
+                </div>
+
+                {/* 培养方案选择 */}
+                <div className="mb-4">
+                  <h4 className="font-medium text-text-primary mb-2">选择培养方案</h4>
+                  <div className="relative">
+                    <select 
+                      value={selectedProgram}
+                      onChange={(e) => setSelectedProgram(e.target.value)}
+                      className="w-full px-4 py-2 border border-border-light rounded-lg focus:outline-none focus:border-secondary"
+                      disabled={programsLoading}
+                    >
+                      <option value="">请选择培养方案</option>
+                      {programsLoading ? (
+                        <option value="">加载中...</option>
+                      ) : availablePrograms.length === 0 ? (
+                        <option value="">暂无可用培养方案</option>
+                      ) : (
+                        availablePrograms.map(program => (
+                          <option key={program.id} value={program.id}>
+                            {program.program_name} ({program.program_code})
+                          </option>
+                        ))
+                      )}
+                    </select>
+                    {programsLoading && (
+                      <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                        <i className="fas fa-spinner fa-spin text-secondary"></i>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* 培养方案详情显示 */}
+                {selectedProgram && availablePrograms.length > 0 && (
+                  <div className="flex-1 overflow-hidden flex flex-col">
+                    <h4 className="font-medium text-text-primary mb-2">培养方案详情</h4>
+                    {(() => {
+                      const selected = availablePrograms.find(p => p.id === selectedProgram);
+                      return selected ? (
+                        <div className="flex-1 overflow-auto p-4 bg-gray-50 rounded-lg">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                            <div>
+                              <span className="font-medium text-text-primary">方案名称：</span>
+                              <span className="text-text-secondary ml-2">{selected.program_name}</span>
+                            </div>
+                            <div>
+                              <span className="font-medium text-text-primary">方案代码：</span>
+                              <span className="text-text-secondary ml-2">{selected.program_code}</span>
+                            </div>
+                            <div>
+                              <span className="font-medium text-text-primary">专业：</span>
+                              <span className="text-text-secondary ml-2">{selected.major}</span>
+                            </div>
+                            <div>
+                              <span className="font-medium text-text-primary">院系：</span>
+                              <span className="text-text-secondary ml-2">{selected.department}</span>
+                            </div>
+                            <div>
+                              <span className="font-medium text-text-primary">总学分：</span>
+                              <span className="text-text-secondary ml-2">{selected.total_credits}学分</span>
+                            </div>
+                            <div>
+                              <span className="font-medium text-text-primary">学制：</span>
+                              <span className="text-text-secondary ml-2">{selected.duration_years}年</span>
+                            </div>
+                          </div>
+                          {selected.description && (
+                            <div className="mt-4">
+                              <span className="font-medium text-text-primary">描述：</span>
+                              <p className="text-text-secondary mt-1 text-sm">{selected.description}</p>
+                            </div>
+                          )}
+                          <div className="mt-4">
+                            <span className="font-medium text-text-primary">课程数量：</span>
+                            <span className="text-text-secondary ml-2">{selected.course_count || 0}门课程</span>
+                          </div>
+                        </div>
+                      ) : null;
+                    })()}
+                  </div>
+                )}
+              </div>
+              
+              <div className="p-6 border-t border-border-light flex justify-end space-x-3">
+                <button 
+                  onClick={() => {
+                    setIsAssignProgramModalOpen(false);
+                    setSelectedProgram('');
+                  }}
+                  className="px-4 py-2 border border-border-light rounded-lg hover:bg-gray-50 transition-colors"
+                  disabled={assigningProgram}
+                >
+                  取消
+                </button>
+                <button 
+                  onClick={handleAssignTrainingProgram}
+                  disabled={!selectedProgram || assigningProgram}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:bg-gray-300"
+                >
+                  {assigningProgram ? '分配中...' : `确认分配 (${selectedStudents.size}名学生)`}
                 </button>
               </div>
             </div>

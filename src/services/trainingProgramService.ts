@@ -292,31 +292,56 @@ export class TrainingProgramService {
    */
   static async importTrainingProgram(courses: TrainingProgramCourse[]): Promise<TrainingProgramImportResult> {
     try {
-      // 模拟API调用
+      // 准备API数据格式
+      const apiCourses = courses.map(course => ({
+        course_number: course.course_number,
+        course_name: course.course_name,
+        credits: course.credits,
+        recommended_grade: course.recommended_grade,
+        semester: course.semester,
+        exam_method: course.exam_method,
+        course_nature: course.course_nature
+      }));
+
       const response = await fetch(`${this.BASE_URL}/training-program/import`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ courses }),
+        body: JSON.stringify({ 
+          courses: apiCourses,
+          programCode: 'CS_2021',
+          batchName: `培养方案导入_${new Date().toLocaleString('zh-CN')}`,
+          importedBy: null // UUID 类型，暂时为 null
+        }),
       });
 
       if (!response.ok) {
-        throw new Error('导入失败');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || '导入失败');
       }
 
       const result = await response.json();
-      return result;
-    } catch (error) {
-      // 如果API调用失败，返回模拟结果
-      console.log('模拟导入培养方案课程:', courses);
       
-      // 模拟成功的导入结果
+      if (!result.success) {
+        throw new Error(result.message || '导入失败');
+      }
+
       return {
-        success: courses.length,
-        failed: 0,
-        total: courses.length
+        success: result.data.success,
+        failed: result.data.failed,
+        total: result.data.total,
+        errors: result.data.failed > 0 ? [] : undefined // 可以从失败记录中获取详细错误
       };
+    } catch (error) {
+      console.error('导入培养方案失败:', error);
+      
+      // 如果是网络错误或API不可用，抛出错误让用户知道
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        throw new Error('无法连接到服务器，请确保API服务器已启动');
+      }
+      
+      throw error;
     }
   }
 }

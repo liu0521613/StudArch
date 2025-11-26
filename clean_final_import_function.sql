@@ -1,23 +1,42 @@
--- 简化的培养方案导入函数
--- 用于快速测试API功能
+-- 清理后的最终版本导入函数
+-- 先清理冲突，然后创建正确版本
 
+-- 1. 清理冲突函数
+DROP FUNCTION IF EXISTS import_training_program_courses(
+    p_courses JSONB,
+    p_program_code TEXT,
+    p_batch_name TEXT,
+    p_imported_by TEXT
+);
+
+DROP FUNCTION IF EXISTS import_training_program_courses(
+    p_courses JSONB,
+    p_program_code TEXT,
+    p_batch_name TEXT,
+    p_imported_by UUID
+);
+
+DROP FUNCTION IF EXISTS get_training_program_courses(p_program_id UUID);
+
+-- 2. 创建最终版本（使用 UUID 类型）
 CREATE OR REPLACE FUNCTION import_training_program_courses(
     p_courses JSONB,
     p_program_code TEXT DEFAULT 'CS_2021',
     p_batch_name TEXT DEFAULT NULL,
-    p_imported_by TEXT DEFAULT NULL
+    p_imported_by UUID DEFAULT NULL
 )
 RETURNS JSONB AS $$
 DECLARE
     batch_uuid UUID;
     program_uuid UUID;
-    success_count INTEGER := 0;
-    failure_count INTEGER := 0;
+    v_success_count INTEGER := 0;
+    v_failure_count INTEGER := 0;
     course_record JSONB;
     course_uuid UUID;
     error_message TEXT;
     row_number INTEGER := 1;
     result JSONB;
+    total_count INTEGER;
 BEGIN
     -- 获取或创建培养方案
     SELECT id INTO program_uuid 
@@ -45,6 +64,10 @@ BEGIN
         ) RETURNING id INTO program_uuid;
     END IF;
     
+    -- 计算课程数量
+    SELECT COUNT(*) INTO total_count 
+    FROM jsonb_array_elements(p_courses);
+    
     -- 创建导入批次
     INSERT INTO training_program_import_batches (
         program_id,
@@ -58,7 +81,7 @@ BEGIN
         program_uuid,
         COALESCE(p_batch_name, '导入批次_' || to_char(NOW(), 'YYYY-MM-DD HH24:MI:SS')),
         p_imported_by,
-        jsonb_array_length(p_courses),
+        total_count,
         'processing',
         NOW(),
         NOW()
@@ -95,11 +118,11 @@ BEGIN
                 NOW()
             ) RETURNING id INTO course_uuid;
             
-            success_count := success_count + 1;
+            v_success_count := v_success_count + 1;
             
         EXCEPTION WHEN OTHERS THEN
             error_message := SQLERRM;
-            failure_count := failure_count + 1;
+            v_failure_count := v_failure_count + 1;
             
             -- 记录错误到批次
             UPDATE training_program_import_batches 
@@ -114,9 +137,9 @@ BEGIN
     -- 更新批次状态
     UPDATE training_program_import_batches 
     SET 
-        success_count = success_count,
-        failure_count = failure_count,
-        status = CASE WHEN failure_count = 0 THEN 'completed' ELSE 'completed_with_errors' END,
+        success_count = v_success_count,
+        failure_count = v_failure_count,
+        status = CASE WHEN v_failure_count = 0 THEN 'completed' ELSE 'completed_with_errors' END,
         completed_at = NOW()
     WHERE id = batch_uuid;
     
@@ -132,13 +155,13 @@ BEGIN
     
     -- 返回结果
     result := jsonb_build_object(
-        'success', success_count > 0,
-        'message', format('成功导入 %d 门课程，失败 %d 门', success_count, failure_count),
+        'success', v_success_count > 0,
+        'message', format('成功导入 %d 门课程，失败 %d 门', v_success_count, v_failure_count),
         'batch_id', batch_uuid,
         'program_id', program_uuid,
-        'success_count', success_count,
-        'failure_count', failure_count,
-        'total_count', success_count + failure_count
+        'success_count', v_success_count,
+        'failure_count', v_failure_count,
+        'total_count', v_success_count + v_failure_count
     );
     
     RETURN result;
@@ -146,7 +169,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 创建获取培养方案课程的函数
+-- 3. 创建获取培养方案课程的函数
 CREATE OR REPLACE FUNCTION get_training_program_courses(p_program_id UUID)
 RETURNS SETOF JSONB AS $$
 BEGIN
