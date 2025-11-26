@@ -3,11 +3,108 @@ import { Link, useNavigate } from 'react-router-dom';
 import styles from './styles.module.css';
 import { useAuth } from '../../hooks/useAuth';
 import useStudentProfile from '../../hooks/useStudentProfile';
+import { Button, Upload, Textarea, Progress, Divider } from 'tdesign-react';
+import { UploadIcon, AssignmentIcon, CalendarIcon, CheckCircleIcon } from 'tdesign-icons-react';
+
+// 类型定义
+interface Course {
+  id: string;
+  name: string;
+  teacher: string;
+  credits: number;
+  status: 'pending' | 'in_progress' | 'completed';
+  tags: string[];
+  outcomes: string;
+  achievements: string;
+  proofFiles: File[];
+  startDate: string;
+  endDate: string;
+  description: string;
+}
+
+interface Semester {
+  value: string;
+  label: string;
+  isActive: boolean;
+}
 
 const StudentAcademicTasks: React.FC = () => {
   const navigate = useNavigate();
   const { user: currentUser, loading: authLoading } = useAuth();
   const { profile: studentProfile } = useStudentProfile(currentUser?.id || '');
+
+  // 学期选择相关状态
+  const [selectedSemester, setSelectedSemester] = useState('2024-2');
+  const [semesters] = useState<Semester[]>([
+    { value: '2024-2', label: '2024年第二学期', isActive: true },
+    { value: '2024-1', label: '2024年第一学期', isActive: false },
+    { value: '2023-2', label: '2023年第二学期', isActive: false },
+    { value: '2023-1', label: '2023年第一学期', isActive: false },
+    { value: '2022-2', label: '2022年第二学期', isActive: false },
+    { value: '2022-1', label: '2022年第一学期', isActive: false },
+  ]);
+
+  // 常用技术标签
+  const [commonTags] = useState<string[]>([
+    'JavaScript', 'TypeScript', 'React', 'Vue', 'Angular',
+    'Node.js', 'Python', 'Java', 'C++', 'Go',
+    'HTML/CSS', 'SQL', 'MongoDB', 'Redis', 'Docker',
+    'Git', 'Linux', 'AWS', '机器学习', '深度学习',
+    '数据结构', '算法', '前端开发', '后端开发', '全栈开发',
+    '移动开发', '数据库设计', '系统设计', '云计算', '微服务'
+  ]);
+
+  // 课程数据状态
+  const [courses, setCourses] = useState<Course[]>([
+    {
+      id: '1',
+      name: '数据结构与算法',
+      teacher: '张教授',
+      credits: 4,
+      status: 'in_progress',
+      tags: ['数据结构', '算法', 'C++', 'Python'],
+      outcomes: '掌握了基本数据结构，理解了算法复杂度分析',
+      achievements: '完成了所有实验项目，期中成绩85分',
+      proofFiles: [],
+      startDate: '2024-02-26',
+      endDate: '2024-07-15',
+      description: '本课程主要讲授数据结构的基本概念和算法设计与分析方法'
+    },
+    {
+      id: '2',
+      name: 'Web前端开发',
+      teacher: '李老师',
+      credits: 3,
+      status: 'in_progress',
+      tags: ['HTML/CSS', 'JavaScript', 'React', '前端开发'],
+      outcomes: '学会了React框架，掌握了前端工程化',
+      achievements: '完成了个人博客项目，小组项目获得优秀',
+      proofFiles: [],
+      startDate: '2024-02-26',
+      endDate: '2024-07-15',
+      description: '学习现代前端开发技术和框架，掌握Web应用开发'
+    },
+    {
+      id: '3',
+      name: '数据库系统',
+      teacher: '王教授',
+      credits: 3,
+      status: 'pending',
+      tags: ['SQL', '数据库设计', 'MongoDB'],
+      outcomes: '',
+      achievements: '',
+      proofFiles: [],
+      startDate: '2024-02-26',
+      endDate: '2024-07-15',
+      description: '学习数据库原理、设计和应用开发'
+    },
+  ]);
+
+  // 编辑状态
+  const [editingCourse, setEditingCourse] = useState<string | null>(null);
+  
+  // 标签输入相关状态
+  const [tagInput, setTagInput] = useState<{ [courseId: string]: string }>({});
 
   useEffect(() => {
     const originalTitle = document.title;
@@ -23,6 +120,109 @@ const StudentAcademicTasks: React.FC = () => {
 
   const handleUserInfoClick = () => {
     navigate('/student-my-profile');
+  };
+
+  // 学期切换处理
+  const handleSemesterChange = (value: string) => {
+    setSelectedSemester(value);
+    // 这里可以添加切换学期后的数据加载逻辑
+    loadCoursesForSemester(value);
+  };
+
+  // 加载指定学期的课程数据
+  const loadCoursesForSemester = (semester: string) => {
+    // 模拟加载不同学期的课程数据
+    console.log('加载学期', semester, '的课程数据');
+  };
+
+  // 编辑课程信息
+  const handleEditCourse = (courseId: string) => {
+    setEditingCourse(courseId);
+  };
+
+  // 保存课程信息
+  const handleSaveCourse = (courseId: string) => {
+    setEditingCourse(null);
+    // 这里可以添加保存逻辑
+    console.log('保存课程', courseId, '的信息');
+  };
+
+  // 取消编辑
+  const handleCancelEdit = () => {
+    setEditingCourse(null);
+  };
+
+  // 更新课程信息
+  const handleCourseChange = (courseId: string, field: keyof Course, value: any) => {
+    setCourses(prev => prev.map(course => 
+      course.id === courseId ? { ...course, [field]: value } : course
+    ));
+  };
+
+  // 文件上传处理
+  const handleFileUpload = (courseId: string, files: File[]) => {
+    setCourses(prev => prev.map(course => 
+      course.id === courseId ? { ...course, proofFiles: [...course.proofFiles, ...files] } : course
+    ));
+  };
+
+  // 添加标签
+  const handleAddTag = (courseId: string, tag: string) => {
+    if (!tag.trim()) return;
+    
+    setCourses(prev => prev.map(course => 
+      course.id === courseId 
+        ? { ...course, tags: [...course.tags, tag.trim()] }
+        : course
+    ));
+    setTagInput(prev => ({ ...prev, [courseId]: '' }));
+  };
+
+  // 删除标签
+  const handleRemoveTag = (courseId: string, tagToRemove: string) => {
+    setCourses(prev => prev.map(course => 
+      course.id === courseId 
+        ? { ...course, tags: course.tags.filter(tag => tag !== tagToRemove) }
+        : course
+    ));
+  };
+
+  // 从常用标签添加
+  const handleAddCommonTag = (courseId: string, tag: string) => {
+    setCourses(prev => prev.map(course => 
+      course.id === courseId && !course.tags.includes(tag)
+        ? { ...course, tags: [...course.tags, tag] }
+        : course
+    ));
+  };
+
+  // 获取状态标签
+  const getStatusTag = (status: Course['status']) => {
+    switch (status) {
+      case 'completed':
+        return (
+          <span className="px-3 py-1 text-xs rounded-full font-medium bg-green-100 text-green-800 flex items-center">
+            <i className="fas fa-check-circle mr-1"></i>
+            已完成
+          </span>
+        );
+      case 'in_progress':
+        return (
+          <span className="px-3 py-1 text-xs rounded-full font-medium bg-orange-100 text-orange-800 flex items-center">
+            <i className="fas fa-clock mr-1"></i>
+            进行中
+          </span>
+        );
+      case 'pending':
+        return (
+          <span className="px-3 py-1 text-xs rounded-full font-medium bg-gray-100 text-gray-800 flex items-center">
+            <i className="fas fa-hourglass-start mr-1"></i>
+            待开始
+          </span>
+        );
+      default:
+        return null;
+    }
   };
 
   return (
@@ -129,36 +329,451 @@ const StudentAcademicTasks: React.FC = () => {
       <main className="ml-64 mt-16 p-6 min-h-screen">
         {/* 页面头部 */}
         <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-bold text-text-primary mb-2">教学任务与安排</h2>
-              <nav className="text-sm text-text-secondary">
-                <Link to="/student-dashboard" className="hover:text-secondary">首页</Link>
-                <span className="mx-2">/</span>
-                <span>教学任务与安排</span>
-              </nav>
-            </div>
-            <div className="text-right">
-              <div className="text-sm text-text-secondary">今天是</div>
-              <div className="text-lg font-medium text-text-primary">2024年1月15日 星期一</div>
-            </div>
+          <div>
+            <h2 className="text-2xl font-bold text-text-primary mb-2">教学任务与安排</h2>
+            <nav className="text-sm text-text-secondary">
+              <Link to="/student-dashboard" className="hover:text-secondary">首页</Link>
+              <span className="mx-2">/</span>
+              <span>教学任务与安排</span>
+            </nav>
           </div>
         </div>
 
-        {/* 页面内容占位 */}
+        {/* 学期选择器 */}
         <section className="mb-8">
-          <div className="bg-white rounded-xl shadow-card p-12">
-            <div className="text-center">
-              <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <i className="fas fa-book text-gray-400 text-3xl"></i>
+          <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border-l-4 border-purple-500 p-6 rounded-xl shadow-sm">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <div className="w-12 h-12 bg-gradient-to-br from-purple-400 to-indigo-600 rounded-lg flex items-center justify-center">
+                  <CalendarIcon className="text-white text-xl" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-800">学期选择</h3>
+                  <p className="text-sm text-gray-600">查看不同学期的课程安排和进度</p>
+                </div>
               </div>
-              <h3 className="text-xl font-semibold text-text-primary mb-4">教学任务与安排</h3>
-              <p className="text-text-secondary mb-6">此页面内容待完善，后续将提供详细的教学任务和课程安排信息。</p>
-              <div className="text-sm text-text-secondary">
-                <i className="fas fa-info-circle mr-2"></i>
-                具体功能正在开发中，请等待后续更新
+              <div className="bg-white rounded-lg shadow-sm p-2">
+                <select 
+                  value={selectedSemester}
+                  onChange={(e) => handleSemesterChange(e.target.value)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white w-48"
+                >
+                  {semesters.map(semester => (
+                    <option key={semester.value} value={semester.value}>
+                      {semester.label}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
+          </div>
+        </section>
+
+        {/* 课程统计信息 */}
+        <section className="mb-8">
+          <h3 className="text-lg font-semibold text-text-primary mb-4">课程概览</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className={`bg-white rounded-xl shadow-card p-6 ${styles.cardHover} transition-all duration-300`}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-text-secondary text-sm mb-1">总课程数</p>
+                  <p className="text-3xl font-bold text-blue-600">{courses.length}</p>
+                  <p className="text-text-secondary text-sm mt-1">本学期课程</p>
+                </div>
+                <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-blue-600 rounded-lg flex items-center justify-center">
+                  <i className="fas fa-book text-white text-xl"></i>
+                </div>
+              </div>
+            </div>
+            <div className={`bg-white rounded-xl shadow-card p-6 ${styles.cardHover} transition-all duration-300`}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-text-secondary text-sm mb-1">已完成</p>
+                  <p className="text-3xl font-bold text-green-600">
+                    {courses.filter(c => c.status === 'completed').length}
+                  </p>
+                  <p className="text-text-secondary text-sm mt-1">课程完成</p>
+                </div>
+                <div className="w-12 h-12 bg-gradient-to-br from-green-400 to-green-600 rounded-lg flex items-center justify-center">
+                  <i className="fas fa-check-circle text-white text-xl"></i>
+                </div>
+              </div>
+            </div>
+            <div className={`bg-white rounded-xl shadow-card p-6 ${styles.cardHover} transition-all duration-300`}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-text-secondary text-sm mb-1">进行中</p>
+                  <p className="text-3xl font-bold text-orange-600">
+                    {courses.filter(c => c.status === 'in_progress').length}
+                  </p>
+                  <p className="text-text-secondary text-sm mt-1">正在学习</p>
+                </div>
+                <div className="w-12 h-12 bg-gradient-to-br from-orange-400 to-orange-600 rounded-lg flex items-center justify-center">
+                  <i className="fas fa-clock text-white text-xl"></i>
+                </div>
+              </div>
+            </div>
+            <div className={`bg-white rounded-xl shadow-card p-6 ${styles.cardHover} transition-all duration-300`}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-text-secondary text-sm mb-1">总学分</p>
+                  <p className="text-3xl font-bold text-purple-600">
+                    {courses.reduce((sum, c) => sum + c.credits, 0)}
+                  </p>
+                  <p className="text-text-secondary text-sm mt-1">学分累计</p>
+                </div>
+                <div className="w-12 h-12 bg-gradient-to-br from-purple-400 to-purple-600 rounded-lg flex items-center justify-center">
+                  <i className="fas fa-graduation-cap text-white text-xl"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* 课程列表 */}
+        <section>
+          <div className="mb-6 flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-text-primary mb-2">课程详情</h3>
+              <p className="text-sm text-text-secondary">点击编辑按钮填写学习收获和成果</p>
+            </div>
+            <div className="flex items-center space-x-2 text-sm text-text-secondary">
+              <i className="fas fa-info-circle"></i>
+              <span>共 {courses.length} 门课程</span>
+            </div>
+          </div>
+          
+          <div className="space-y-6">
+            {courses.map((course) => (
+              <div key={course.id} className={`bg-white rounded-xl shadow-card p-6 ${styles.cardHover} transition-all duration-300`}>
+                {/* 课程头部信息 */}
+                <div className="flex items-start justify-between mb-6">
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-4 mb-3">
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                        course.status === 'completed' ? 'bg-green-100' :
+                        course.status === 'in_progress' ? 'bg-orange-100' :
+                        'bg-gray-100'
+                      }`}>
+                        <AssignmentIcon className={`text-xl ${
+                          course.status === 'completed' ? 'text-green-600' :
+                          course.status === 'in_progress' ? 'text-orange-600' :
+                          'text-gray-600'
+                        }`} />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="text-lg font-semibold text-text-primary mb-1">{course.name}</h4>
+                        <div className="flex items-center space-x-4 text-sm text-text-secondary">
+                          <span className="flex items-center space-x-1">
+                            <i className="fas fa-graduation-cap text-xs"></i>
+                            <span>{course.credits}学分</span>
+                          </span>
+                        </div>
+                      </div>
+                      <div className="ml-4">
+                        {getStatusTag(course.status)}
+                      </div>
+                    </div>
+                  </div>
+                  <Button 
+                    variant="text"
+                    onClick={() => editingCourse === course.id ? handleCancelEdit() : handleEditCourse(course.id)}
+                    className={`px-4 py-2 rounded-lg transition-all duration-200 flex items-center ${
+                      editingCourse === course.id 
+                        ? 'border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 hover:border-gray-400' 
+                        : 'bg-secondary text-white hover:bg-accent'
+                    }`}
+                  >
+                    <i className={`fas ${editingCourse === course.id ? 'fa-times' : 'fa-edit'} mr-2`}></i>
+                    <span>{editingCourse === course.id ? '取消' : '编辑'}</span>
+                  </Button>
+                </div>
+
+
+
+                {/* 技术标签 */}
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-text-primary mb-3 flex items-center">
+                    <i className="fas fa-tags text-purple-500 mr-2"></i>
+                    技术标签
+                  </label>
+                  {editingCourse === course.id ? (
+                    <div className="space-y-3">
+                      {/* 已选标签显示 */}
+                      <div className="flex flex-wrap gap-2 min-h-[40px] p-3 bg-gray-50 rounded-lg border border-gray-200">
+                        {course.tags.length > 0 ? (
+                          course.tags.map((tag, index) => (
+                            <span 
+                              key={index}
+                              className="inline-flex items-center px-3 py-1 text-sm bg-purple-100 text-purple-800 rounded-full"
+                            >
+                              {tag}
+                              <button
+                                onClick={() => handleRemoveTag(course.id, tag)}
+                                className="ml-2 text-purple-600 hover:text-purple-800"
+                              >
+                                <i className="fas fa-times text-xs"></i>
+                              </button>
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-sm text-gray-500">暂无标签，请添加技术标签</span>
+                        )}
+                      </div>
+                      
+                      {/* 标签输入 */}
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={tagInput[course.id] || ''}
+                          onChange={(e) => setTagInput(prev => ({ ...prev, [course.id]: e.target.value }))}
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter') {
+                              handleAddTag(course.id, tagInput[course.id] || '');
+                            }
+                          }}
+                          placeholder="输入自定义标签后按回车添加"
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        />
+                        <Button
+                          onClick={() => handleAddTag(course.id, tagInput[course.id] || '')}
+                          className="px-4 py-2 bg-secondary text-white hover:bg-accent rounded-lg transition-colors flex items-center"
+                        >
+                          <i className="fas fa-plus mr-1"></i>
+                          添加
+                        </Button>
+                      </div>
+                      
+                      {/* 常用标签选择 */}
+                      <div>
+                        <p className="text-sm text-gray-600 mb-2">或选择常用标签：</p>
+                        <div className="flex flex-wrap gap-2">
+                          {commonTags.map((tag, index) => (
+                            <button
+                              key={index}
+                              onClick={() => handleAddCommonTag(course.id, tag)}
+                              disabled={course.tags.includes(tag)}
+                              className={`px-3 py-1 text-sm rounded-full transition-colors ${
+                                course.tags.includes(tag)
+                                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                  : 'bg-gray-100 text-gray-700 hover:bg-purple-100 hover:text-purple-800'
+                              }`}
+                            >
+                              {tag}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-2 min-h-[40px] p-4 bg-gray-50 rounded-lg border border-gray-200">
+                      {course.tags.length > 0 ? (
+                        course.tags.map((tag, index) => (
+                          <span 
+                            key={index}
+                            className="inline-flex items-center px-3 py-1 text-sm bg-purple-100 text-purple-800 rounded-full"
+                          >
+                            <i className="fas fa-tag mr-1 text-xs"></i>
+                            {tag}
+                          </span>
+                        ))
+                      ) : (
+                        <div className="flex items-center text-gray-500">
+                          <i className="fas fa-tags mr-2"></i>
+                          <span className="text-sm">暂无技术标签</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="border-t pt-6">
+
+                  {/* 收获与成果编辑区域 */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div>
+                      <label className="block text-sm font-medium text-text-primary mb-3 flex items-center">
+                        <i className="fas fa-lightbulb text-yellow-500 mr-2"></i>
+                        学习收获
+                      </label>
+                      {editingCourse === course.id ? (
+                        <Textarea
+                          value={course.outcomes}
+                          onChange={(value) => handleCourseChange(course.id, 'outcomes', value)}
+                          placeholder="请描述您在本课程中的学习收获和体会..."
+                          rows={4}
+                          className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        />
+                      ) : (
+                        <div className="min-h-[100px] p-4 bg-gray-50 rounded-lg border border-gray-200">
+                          <p className="text-sm text-gray-600">
+                            {course.outcomes || '暂未填写学习收获'}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-text-primary mb-3 flex items-center">
+                        <i className="fas fa-trophy text-yellow-500 mr-2"></i>
+                        学习成果
+                      </label>
+                      {editingCourse === course.id ? (
+                        <Textarea
+                          value={course.achievements}
+                          onChange={(value) => handleCourseChange(course.id, 'achievements', value)}
+                          placeholder="请描述您在本课程中取得的具体成果和成就..."
+                          rows={4}
+                          className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        />
+                      ) : (
+                        <div className="min-h-[100px] p-4 bg-gray-50 rounded-lg border border-gray-200">
+                          <p className="text-sm text-gray-600">
+                            {course.achievements || '暂未填写学习成果'}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* 证明材料上传 */}
+                  <div className="mb-6 space-y-4">
+                    <h3 className="text-lg font-semibold text-text-primary border-b border-border-light pb-2">证明材料上传</h3>
+                    
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-text-primary">
+                          上传证明材料 <span className="text-text-secondary">(支持PDF、JPG、PNG、DOC、DOCX格式，单个文件不超过10MB)</span>
+                        </label>
+                        
+                        {editingCourse === course.id ? (
+                          <div className={`${styles.fileUploadArea} rounded-lg p-8 text-center cursor-pointer`}
+                               onClick={() => document.getElementById(`file-input-${course.id}`)?.click()}
+                               onDragOver={(e) => e.preventDefault()}
+                               onDragLeave={(e) => e.currentTarget.classList.remove(styles.fileUploadAreaDragover)}
+                               onDrop={(e) => {
+                                 e.preventDefault();
+                                 e.currentTarget.classList.remove(styles.fileUploadAreaDragover);
+                                 const files = Array.from(e.dataTransfer.files);
+                                 handleFileUpload(course.id, files);
+                               }}>
+                            <input 
+                              id={`file-input-${course.id}`}
+                              type="file" 
+                              multiple 
+                              accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" 
+                              onChange={(e) => {
+                                const files = Array.from(e.target.files || []);
+                                handleFileUpload(course.id, files);
+                              }}
+                              className="hidden" 
+                            />
+                            
+                            {/* 上传占位符 */}
+                            {course.proofFiles.length === 0 && (
+                              <div className="space-y-4">
+                                <div className="w-16 h-16 bg-gradient-to-br from-secondary to-accent rounded-full flex items-center justify-center mx-auto">
+                                  <i className="fas fa-cloud-upload-alt text-white text-2xl"></i>
+                                </div>
+                                <div>
+                                  <p className="text-lg font-medium text-text-primary">点击或拖拽文件到此处上传</p>
+                                  <p className="text-sm text-text-secondary mt-1">支持多文件上传</p>
+                                </div>
+                              </div>
+                            )}
+                            
+                            {/* 已上传文件列表 */}
+                            {course.proofFiles.length > 0 && (
+                              <div className="space-y-2">
+                                {course.proofFiles.map((file, index) => (
+                                  <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                    <div className="flex items-center space-x-3">
+                                      <CheckCircleIcon className="text-green-500" />
+                                      <i className="fas fa-file-alt text-gray-400"></i>
+                                      <span className="text-sm text-gray-700">{file.name}</span>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                      <span className="text-xs text-gray-500">{Math.round(file.size / 1024)}KB</span>
+                                      <button 
+                                        type="button" 
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          // 这里可以添加删除文件的逻辑
+                                        }}
+                                        className="text-red-500 hover:text-red-700 transition-colors"
+                                      >
+                                        <i className="fas fa-times"></i>
+                                      </button>
+                                    </div>
+                                  </div>
+                                ))}
+                                
+                                {/* 继续上传提示 */}
+                                <div className="text-center pt-4">
+                                  <p className="text-sm text-text-secondary">点击或拖拽更多文件到此处继续上传</p>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="bg-white rounded-xl shadow-card border border-gray-100 p-6">
+                            {course.proofFiles.length > 0 ? (
+                              <div>
+                                <div className="flex items-center justify-between mb-4">
+                                  <h4 className="text-sm font-medium text-gray-800">已上传文件</h4>
+                                  <span className="text-xs text-gray-500">共 {course.proofFiles.length} 个文件</span>
+                                </div>
+                                <div className="space-y-3">
+                                  {course.proofFiles.map((file, index) => (
+                                    <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                      <div className="flex items-center space-x-3">
+                                        <CheckCircleIcon className="text-green-500" />
+                                        <i className="fas fa-file-alt text-gray-400"></i>
+                                        <span className="text-sm text-gray-700">{file.name}</span>
+                                      </div>
+                                      <span className="text-xs text-gray-500">{Math.round(file.size / 1024)}KB</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="text-center py-8">
+                                <div className="w-16 h-16 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+                                  <i className="fas fa-folder-open text-2xl text-gray-400"></i>
+                                </div>
+                                <h4 className="text-sm font-medium text-gray-600 mb-1">暂未上传证明材料</h4>
+                                <p className="text-xs text-gray-500">点击编辑按钮上传相关证明文件</p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {editingCourse === course.id && (
+                    <div className="flex justify-end space-x-3 pt-4 border-t border-gray-100">
+                      <Button 
+                        variant="outline" 
+                        onClick={handleCancelEdit} 
+                        className="px-6 py-2 border border-border-light text-text-secondary rounded-lg hover:bg-gray-50 transition-colors flex items-center"
+                      >
+                        <i className="fas fa-times mr-2"></i>
+                        取消
+                      </Button>
+                      <Button 
+                        theme="primary" 
+                        onClick={() => handleSaveCourse(course.id)} 
+                        className="px-6 py-2 bg-secondary text-white rounded-lg hover:bg-accent transition-colors flex items-center"
+                      >
+                        <i className="fas fa-save mr-2"></i>
+                        保存更改
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         </section>
       </main>

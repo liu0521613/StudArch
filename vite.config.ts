@@ -6,6 +6,15 @@ import react from '@vitejs/plugin-react';
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => ({
   plugins: [react()],
+  css: {
+    preprocessorOptions: {
+      less: {
+        modifyVars: {
+          '@btn-height-default': '40px',
+        },
+      },
+    },
+  },
   server: {
     allowedHosts: true,
     hmr: {
